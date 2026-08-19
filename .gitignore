@@ -1,0 +1,22 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlfnode_modules/
+dist/
+build/
+.vite/
+.env
+.env.*
+!.env.example
+logs/
+backups/
+database/
+firmware/**/build/
+firmware/**/sdkconfig.old
+mqtt/passwd
+assets/3d/photos/
+assets/3d/realityscan/
+assets/3d/source/
+*.blend1
+Thumbs.db
+.DS_Store
