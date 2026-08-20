@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "DT_DataCenter",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "idf.currentSetup": "D:\\esp\\.espressif\\v5.5.5\\esp-idf",
+  "idf.extensionActivationMode": "always",
+  "idf.notificationMode": "Output",
+  "idf.showOnboardingOnInit": false,
+  "idf.buildPathWin": "${workspaceFolder}\\build",
+  "idf.enableCCache": true,
+  "C_Cpp.default.compileCommands": "${workspaceFolder}\\build\\compile_commands.json",
+  "editor.formatOnSave": true,
+  "[c]": {
+    "editor.formatOnSave": false
+  },
+  "[cpp]": {
+    "editor.formatOnSave": false
+  },
+  "idf.customExtraVars": {},
+  "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=e:\\Projects\\Digital_Twin\\firmware\\ESP32S3_DataCenter\\build"
+  ]
+}
