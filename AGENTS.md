@@ -1,4 +1,4 @@
-﻿# DT_DataCenter Engineering Rules
+# DT_DataCenter Engineering Rules
 
 Project: Digital Twin Data Center Laboratorium Kampus
 Identifier: DT_DataCenter
@@ -122,3 +122,15 @@ PRD defines what the product must do.
 design.md defines frontend visual and interaction direction.
 
 Do not invent requirements that belong in the PRD.
+
+## Commit and push approval
+
+- Never commit or push changes autonomously.
+- After completing a change, stop before commit and show the repository status, changed files, and relevant diff for user review.
+- The user performs `git commit` and `git push` manually.
+- Codex may execute a commit or push only when the user gives explicit approval for that specific commit or push.
+- Previous approval does not authorize future commits or pushes.
+- Never force-push, merge, delete branches, delete repositories, or modify remotes without explicit user approval.
+- Before any approved commit, show `git status`, staged files, and the relevant staged diff.
+- Before any approved push, show the target repository, remote, branch, and commits that will be pushed.
+- If there is any uncertainty about repository, branch, remote, staged files, or scope, stop and ask the user.
