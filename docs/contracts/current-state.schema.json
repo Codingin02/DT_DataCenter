@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dt-datacenter:current-state:1.0",
+  "title": "DT_DataCenter canonical current state row v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "asset_id",
+    "metric",
+    "value",
+    "unit",
+    "site_id",
+    "device_id",
+    "sensor_id",
+    "boot_id",
+    "seq",
+    "source_ts",
+    "received_at",
+    "quality",
+    "source_status",
+    "measurement_id",
+    "state_version",
+    "updated_at"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0"
+    },
+    "asset_id": {
+      "$ref": "#/$defs/canonical_id"
+    },
+    "metric": {
+      "$ref": "#/$defs/canonical_id"
+    },
+    "value": {
+      "type": "number"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "site_id": {
+      "$ref": "#/$defs/canonical_id"
+    },
+    "device_id": {
+      "$ref": "#/$defs/canonical_id"
+    },
+    "sensor_id": {
+      "$ref": "#/$defs/canonical_id"
+    },
+    "boot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\s\\u0000](?:[^\\u0000]{0,126}[^\\s\\u0000])?$"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "source_ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "quality": {
+      "enum": ["good", "degraded", "unknown"]
+    },
+    "source_status": {
+      "enum": ["fresh", "stale", "offline", "unknown", "invalid"]
+    },
+    "measurement_id": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "canonical_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    }
+  }
+}

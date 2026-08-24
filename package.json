@@ -1,20 +1,35 @@
-﻿{
-    "dependencies":  {
-                         "three":  "^0.185.1"
-                     },
-    "devDependencies":  {
-                            "@eslint/js":  "^10.0.1",
-                            "@gltf-transform/cli":  "^4.4.2",
-                            "eslint":  "^10.8.1",
-                            "eslint-config-prettier":  "^10.1.8",
-                            "prettier":  "^3.9.6",
-                            "vite":  "^8.2.2"
-                        },
-    "overrides":  {
-                      "sharp":  "~0.35.3"
-                  },
-    "allowScripts":  {
-                         "sharp@0.35.3":  true
-                     },
-    "private":  true
+{
+  "type": "module",
+  "scripts": {
+    "backend": "node backend/server.js",
+    "backup:database": "node scripts/postgres-backup.js backup",
+    "test": "node --test backend/*.test.js",
+    "test:database": "psql -X --file database/tests/foundation.sql",
+    "test:database:restore": "node scripts/postgres-backup.js verify",
+    "lint": "eslint backend scripts/*.js eslint.config.js",
+    "format:check": "prettier --check backend scripts/*.js docs/contracts firmware/ESP32S3_DataCenter/README.md README.md eslint.config.js package.json .prettierrc.json .github/workflows/ci.yml",
+    "check": "npm run lint && npm run format:check && npm test"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "mqtt": "^5.15.2",
+    "pg": "^8.23.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@gltf-transform/cli": "^4.4.2",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "vite": "^8.2.2"
+  },
+  "overrides": {
+    "sharp": "~0.35.3"
+  },
+  "allowScripts": {
+    "sharp@0.35.3": true
+  },
+  "private": true
 }

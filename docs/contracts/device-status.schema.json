@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dt-datacenter:device-status:1.0",
+  "title": "DT_DataCenter device connectivity status v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "site_id", "device_id", "boot_id", "status"],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "site_id": {
+      "$ref": "urn:dt-datacenter:telemetry:1.0#/$defs/canonical_id"
+    },
+    "device_id": {
+      "$ref": "urn:dt-datacenter:telemetry:1.0#/$defs/canonical_id"
+    },
+    "boot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\s\\u0000](?:[^\\u0000]{0,126}[^\\s\\u0000])?$"
+    },
+    "status": {
+      "enum": ["online", "offline"]
+    }
+  }
+}

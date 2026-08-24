@@ -1,0 +1,611 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import test from 'node:test';
+
+import {
+  createCurrentStateEvents,
+  createDeviceStatusIngestor,
+  createHttpHandler,
+  createIngestor,
+} from './app.js';
+import { loadConfiguration } from './config.js';
+import { createMetrics, PROMETHEUS_CONTENT_TYPE } from './metrics.js';
+
+const telemetry = {
+  schema_version: '1.0',
+  site_id: 'test-site',
+  device_id: 'test-device',
+  boot_id: 'test-boot',
+  seq: 1,
+  sensor_id: 'test-sensor',
+  asset_id: 'test-rack',
+  metric: 'temperature',
+  value: 20,
+  unit: 'degC',
+  ts: '2026-01-01T00:00:00.000Z',
+  quality: 'good',
+};
+const topic = 'dt/test-site/telemetry/test-device/test-sensor/temperature';
+const deviceStatus = {
+  schema_version: '1.0',
+  site_id: 'test-site',
+  device_id: 'test-device',
+  boot_id: 'test-boot',
+  status: 'online',
+};
+const deviceStatusTopic = 'dt/test-site/device/test-device/status';
+const runtimeEnvironment = {
+  PGHOST: '127.0.0.1',
+  PGPORT: '5432',
+  PGDATABASE: 'DT_DataCenter',
+  PGUSER: 'bagus',
+  PGPASSWORD: 'test-database-secret',
+  MQTT_URL: 'mqtt://127.0.0.1:1883',
+  MQTT_CLIENT_ID: 'test-backend',
+  MQTT_USERNAME: 'test-user',
+  MQTT_PASSWORD: 'test-mqtt-secret',
+  MQTT_SESSION_EXPIRY_SECONDS: '86400',
+  MQTT_MAX_PAYLOAD_BYTES: '65536',
+  HTTP_HOST: '127.0.0.1',
+  HTTP_PORT: '3000',
+};
+
+test('startup configuration requires explicit valid runtime settings', () => {
+  const configuration = loadConfiguration(runtimeEnvironment);
+  assert.equal(configuration.http.port, 3000);
+  assert.equal(configuration.mqtt.maxPayloadBytes, 65536);
+  assert.equal(configuration.postgres.password, 'test-database-secret');
+
+  assert.throws(
+    () => loadConfiguration({ ...runtimeEnvironment, HTTP_HOST: ' ' }),
+    /HTTP_HOST is required/
+  );
+  assert.throws(
+    () => loadConfiguration({ ...runtimeEnvironment, PGPORT: '5432.5' }),
+    /PGPORT must be an integer/
+  );
+  assert.throws(
+    () => loadConfiguration({ ...runtimeEnvironment, MQTT_URL: 'mqtt://user:secret@localhost' }),
+    /MQTT_URL must not include credentials/
+  );
+});
+
+test('ingestion validates the canonical payload and preserves duplicate outcome', async () => {
+  const calls = [];
+  let acceptedCalls = 0;
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    if (!text.includes('accept_measurement')) {
+      throw new Error('Unexpected query.');
+    }
+
+    acceptedCalls += 1;
+    return {
+      rows: [
+        acceptedCalls === 1
+          ? {
+              outcome: 'accepted',
+              persisted_measurement_id: '1',
+              resulting_state_version: '1',
+            }
+          : {
+              outcome: 'duplicate',
+              persisted_measurement_id: '1',
+              resulting_state_version: '1',
+            },
+      ],
+    };
+  };
+  const ingest = createIngestor({ query });
+  const payload = Buffer.from(JSON.stringify(telemetry));
+
+  assert.equal((await ingest(topic, payload)).outcome, 'accepted');
+  assert.deepEqual(await ingest(topic, payload), {
+    outcome: 'duplicate',
+    persisted_measurement_id: '1',
+    resulting_state_version: '1',
+  });
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].values, [
+    topic,
+    '1.0',
+    'test-site',
+    'test-device',
+    'test-boot',
+    1,
+    'test-sensor',
+    'test-rack',
+    'temperature',
+    20,
+    'degC',
+    '2026-01-01T00:00:00.000Z',
+    'good',
+  ]);
+});
+
+test('invalid metric and unit are rejected before accepted persistence', async () => {
+  const calls = [];
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    return { rows: [{ record_ingestion_rejection: '1' }] };
+  };
+  const ingest = createIngestor({ query });
+  const invalid = { ...telemetry, unit: 'percent_rh' };
+
+  assert.deepEqual(await ingest(topic, Buffer.from(JSON.stringify(invalid))), {
+    outcome: 'rejected',
+    reason_code: 'unsupported-metric-unit',
+  });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].text, /record_ingestion_rejection/);
+  assert.equal(calls[0].values[2], 'unsupported-metric-unit');
+});
+
+test('invalid boot identity and NUL diagnostics are safely rejected', async () => {
+  const calls = [];
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    return { rows: [{ record_ingestion_rejection: '1' }] };
+  };
+  const ingest = createIngestor({ query });
+
+  assert.deepEqual(
+    await ingest(topic, Buffer.from(JSON.stringify({ ...telemetry, boot_id: ' test-boot' }))),
+    { outcome: 'rejected', reason_code: 'schema-validation' }
+  );
+  assert.deepEqual(await ingest(topic, Buffer.from('{\0')), {
+    outcome: 'rejected',
+    reason_code: 'malformed-json',
+  });
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(({ text }) => text.includes('record_ingestion_rejection')));
+  assert.ok(calls.flatMap(({ values }) => values).every((value) => !String(value).includes('\0')));
+});
+
+test('oversized MQTT payload is rejected without retaining its body', async () => {
+  const calls = [];
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    return { rows: [{ record_ingestion_rejection: '1' }] };
+  };
+  const ingest = createIngestor({ query, maxPayloadBytes: 8 });
+
+  assert.deepEqual(await ingest(topic, Buffer.alloc(9, 'x')), {
+    outcome: 'rejected',
+    reason_code: 'payload-too-large',
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].values[1], null);
+  assert.equal(calls[0].values[2], 'payload-too-large');
+});
+
+test('device status persists separately and emits each changed canonical state once', async () => {
+  const calls = [];
+  let statusWrites = 0;
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    if (text.includes('record_device_status')) {
+      statusWrites += 1;
+      assert.doesNotMatch(text, /accept_measurement/);
+      return {
+        rows: [
+          {
+            outcome: 'accepted',
+            status: 'online',
+            boot_id: 'test-boot',
+            received_at: new Date('2026-01-01T00:00:00.000Z'),
+            resulting_state_versions: statusWrites === 1 ? ['2'] : [],
+          },
+        ],
+      };
+    }
+    assert.match(text, /WHERE state_version = ANY/);
+    assert.deepEqual(values, [['2']]);
+    return {
+      rows: [
+        {
+          contract_version: '1.0',
+          asset_id: 'test-rack',
+          metric: 'temperature',
+          value: '20',
+          unit: 'degC',
+          site_id: 'test-site',
+          device_id: 'test-device',
+          sensor_id: 'test-sensor',
+          boot_id: 'test-boot',
+          seq: '1',
+          source_ts: new Date('2026-01-01T00:00:00.000Z'),
+          received_at: new Date('2026-01-01T00:00:01.000Z'),
+          quality: 'good',
+          source_status: 'unknown',
+          measurement_id: '1',
+          state_version: '2',
+          updated_at: new Date('2026-01-01T00:00:02.000Z'),
+        },
+      ],
+    };
+  };
+  const updates = [];
+  const ingest = createDeviceStatusIngestor({
+    query,
+    onCurrentState: (state) => updates.push(state),
+  });
+  const payload = Buffer.from(JSON.stringify(deviceStatus));
+
+  assert.equal((await ingest(deviceStatusTopic, payload)).outcome, 'accepted');
+  assert.equal((await ingest(deviceStatusTopic, payload)).outcome, 'accepted');
+  assert.equal(calls.length, 3);
+  assert.deepEqual(calls[0].values, ['test-site', 'test-device', 'test-boot', 'online']);
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].state_version, '2');
+  assert.equal(updates[0].source_status, 'unknown');
+});
+
+test('unknown device status identity remains a status rejection', async () => {
+  const query = async (text, values) => {
+    assert.match(text, /record_device_status/);
+    assert.doesNotMatch(text, /accept_measurement/);
+    assert.deepEqual(values, ['test-site', 'test-device', 'test-boot', 'online']);
+    return { rows: [{ outcome: 'rejected', reason_code: 'unknown-identity' }] };
+  };
+  const ingest = createDeviceStatusIngestor({ query });
+
+  assert.deepEqual(await ingest(deviceStatusTopic, Buffer.from(JSON.stringify(deviceStatus))), {
+    outcome: 'rejected',
+    reason_code: 'unknown-identity',
+  });
+});
+
+test('invalid device status is rejected without telemetry persistence', async () => {
+  const calls = [];
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    assert.match(text, /record_ingestion_rejection/);
+    assert.doesNotMatch(text, /accept_measurement|record_device_status/);
+    return { rows: [{ record_ingestion_rejection: '1' }] };
+  };
+  const ingest = createDeviceStatusIngestor({ query });
+  const payload = Buffer.from(JSON.stringify(deviceStatus));
+
+  assert.deepEqual(await ingest('dt/other-site/device/test-device/status', payload), {
+    outcome: 'rejected',
+    reason_code: 'topic-mismatch',
+  });
+  assert.deepEqual(await ingest(deviceStatusTopic, Buffer.from('{')), {
+    outcome: 'rejected',
+    reason_code: 'malformed-json',
+  });
+  assert.deepEqual(
+    await ingest(deviceStatusTopic, Buffer.from(JSON.stringify({ ...deviceStatus, seq: 1 }))),
+    { outcome: 'rejected', reason_code: 'schema-validation' }
+  );
+  assert.deepEqual(
+    await ingest(
+      deviceStatusTopic,
+      Buffer.from(JSON.stringify({ ...deviceStatus, boot_id: 'test\0boot' }))
+    ),
+    { outcome: 'rejected', reason_code: 'schema-validation' }
+  );
+  assert.equal(calls.length, 4);
+});
+
+test('SSE emits one accepted current-state update and removes disconnected clients', async (t) => {
+  const currentStateEvents = createCurrentStateEvents();
+  const outcomes = [
+    {
+      outcome: 'accepted',
+      persisted_measurement_id: '1',
+      resulting_state_version: '1',
+    },
+    {
+      outcome: 'duplicate',
+      persisted_measurement_id: '1',
+      resulting_state_version: '1',
+    },
+    {
+      outcome: 'rejected',
+      persisted_measurement_id: '2',
+      resulting_state_version: '1',
+    },
+    {
+      outcome: 'accepted',
+      persisted_measurement_id: '3',
+      resulting_state_version: '1',
+    },
+  ];
+  const currentStateRow = {
+    contract_version: '1.0',
+    asset_id: 'test-rack',
+    metric: 'temperature',
+    value: '20',
+    unit: 'degC',
+    site_id: 'test-site',
+    device_id: 'test-device',
+    sensor_id: 'test-sensor',
+    boot_id: 'test-boot',
+    seq: '1',
+    source_ts: new Date('2026-01-01T00:00:00.000Z'),
+    received_at: new Date('2026-01-01T00:00:01.000Z'),
+    quality: 'good',
+    source_status: 'unknown',
+    measurement_id: '1',
+    state_version: '1',
+    updated_at: new Date('2026-01-01T00:00:01.000Z'),
+  };
+  let currentStateReads = 0;
+  const query = async (text, values) => {
+    if (text.includes('accept_measurement')) {
+      const result = outcomes.shift();
+      assert.ok(result);
+      return { rows: [result] };
+    }
+    if (text.includes('WHERE measurement_id')) {
+      currentStateReads += 1;
+      if (values[0] === '1') {
+        assert.deepEqual(values, ['1', '1']);
+        return { rows: [currentStateRow] };
+      }
+      assert.deepEqual(values, ['3', '1']);
+      return { rows: [] };
+    }
+    throw new Error('Unexpected query.');
+  };
+  const updates = [];
+  const ingest = createIngestor({
+    query,
+    onCurrentState(currentState) {
+      updates.push(currentState);
+      currentStateEvents.publish(currentState);
+    },
+  });
+  const server = createServer(createHttpHandler({ query, currentStateEvents }));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => {
+    currentStateEvents.close();
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  const address = server.address();
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/current-state/events`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'text/event-stream; charset=utf-8');
+  assert.equal(response.headers.get('content-length'), null);
+  assert.equal(response.headers.get('content-security-policy'), "default-src 'none'");
+  assert.equal(currentStateEvents.clientCount, 1);
+
+  const payload = Buffer.from(JSON.stringify(telemetry));
+  assert.equal((await ingest(topic, payload)).outcome, 'accepted');
+  assert.equal(updates.length, 1);
+  assert.equal(currentStateReads, 1);
+
+  const reader = response.body.getReader();
+  let frame = '';
+  while (!frame.includes('\n\n')) {
+    const chunk = await reader.read();
+    assert.equal(chunk.done, false);
+    frame += Buffer.from(chunk.value).toString('utf8');
+  }
+  const event = frame.slice(0, frame.indexOf('\n\n'));
+  const lines = event.split('\n');
+  assert.equal(lines[0], 'id: 1');
+  assert.equal(lines[1], 'event: current-state');
+  assert.deepEqual(JSON.parse(lines[2].slice('data: '.length)), updates[0]);
+
+  assert.equal((await ingest(topic, payload)).outcome, 'duplicate');
+  assert.equal(
+    (
+      await ingest(
+        topic,
+        Buffer.from(
+          JSON.stringify({
+            ...telemetry,
+            seq: 2,
+          })
+        )
+      )
+    ).outcome,
+    'rejected'
+  );
+  assert.equal(
+    (
+      await ingest(
+        topic,
+        Buffer.from(
+          JSON.stringify({
+            ...telemetry,
+            seq: 3,
+            ts: '2025-12-31T23:59:00.000Z',
+          })
+        )
+      )
+    ).outcome,
+    'accepted'
+  );
+  assert.equal(updates.length, 1);
+  assert.equal(currentStateReads, 2);
+
+  await reader.cancel();
+  for (let attempt = 0; attempt < 20 && currentStateEvents.clientCount > 0; attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(currentStateEvents.clientCount, 0);
+});
+
+test('current-state HTTP read uses the stable route and exact bigint identities', async (t) => {
+  const query = async (text, values) => {
+    assert.match(text, /FROM digital_twin\.current_state/);
+    assert.deepEqual(values, ['test-rack']);
+    return {
+      rows: [
+        {
+          contract_version: '1.0',
+          asset_id: 'test-rack',
+          metric: 'temperature',
+          value: '20',
+          unit: 'degC',
+          site_id: 'test-site',
+          device_id: 'test-device',
+          sensor_id: 'test-sensor',
+          boot_id: 'test-boot',
+          seq: '1',
+          source_ts: new Date('2026-01-01T00:00:00.000Z'),
+          received_at: new Date('2026-01-01T00:00:01.000Z'),
+          quality: 'good',
+          source_status: 'unknown',
+          measurement_id: '9007199254740993',
+          state_version: '9007199254740994',
+          updated_at: new Date('2026-01-01T00:00:01.000Z'),
+        },
+      ],
+    };
+  };
+  const server = createServer(
+    createHttpHandler({
+      query,
+      logger: {
+        error(message) {
+          assert.fail(message);
+        },
+      },
+    })
+  );
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const address = server.address();
+  const response = await fetch(
+    `http://127.0.0.1:${address.port}/api/assets/test-rack/current-state`
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.length, 1);
+  assert.equal(body[0].measurement_id, '9007199254740993');
+  assert.equal(body[0].state_version, '9007199254740994');
+  assert.equal(body[0].seq, 1);
+  assert.equal(body[0].source_ts, '2026-01-01T00:00:00.000Z');
+  assert.equal(response.headers.get('content-security-policy'), "default-src 'none'");
+  assert.equal(response.headers.get('referrer-policy'), 'no-referrer');
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+});
+
+test('health is live and readiness requires MQTT plus PostgreSQL', async (t) => {
+  let mqttReady = false;
+  let databaseReady = false;
+  let readinessQueries = 0;
+  const errors = [];
+  const query = async (text) => {
+    assert.equal(text, 'SELECT 1');
+    readinessQueries += 1;
+    if (!databaseReady) {
+      const error = new Error('Synthetic database unavailable.');
+      error.code = 'SYNTHETIC_UNAVAILABLE';
+      throw error;
+    }
+    return { rows: [{ '?column?': 1 }] };
+  };
+  const server = createServer(
+    createHttpHandler({
+      query,
+      isMqttReady: () => mqttReady,
+      logger: { error: (...arguments_) => errors.push(arguments_) },
+    })
+  );
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const address = server.address();
+  const origin = `http://127.0.0.1:${address.port}`;
+
+  const health = await fetch(`${origin}/health`);
+  assert.equal(health.status, 200);
+  assert.deepEqual(await health.json(), { status: 'ok' });
+
+  let readiness = await fetch(`${origin}/ready`);
+  assert.equal(readiness.status, 503);
+  assert.equal(readinessQueries, 0);
+
+  mqttReady = true;
+  readiness = await fetch(`${origin}/ready`);
+  assert.equal(readiness.status, 503);
+  assert.equal(readinessQueries, 1);
+  assert.equal(errors.length, 1);
+
+  databaseReady = true;
+  readiness = await fetch(`${origin}/ready`);
+  assert.equal(readiness.status, 200);
+  assert.deepEqual(await readiness.json(), { status: 'ready' });
+});
+
+test('Prometheus metrics reflect bounded runtime outcomes and dependency state', async (t) => {
+  let now = 1700000000000;
+  const metrics = createMetrics({ now: () => now });
+  metrics.recordIngestion('duplicate');
+  assert.match(
+    metrics.render(),
+    /dt_datacenter_backend_last_successful_ingestion_timestamp_seconds 0/
+  );
+  now += 1000;
+  metrics.recordIngestion('accepted');
+  now += 1000;
+  metrics.recordIngestion('rejected');
+  metrics.setMqttConnected(true);
+  assert.throws(() => metrics.recordIngestion('unexpected'), /Unsupported ingestion outcome/);
+
+  let mqttReady = false;
+  let databaseReady = false;
+  const query = async (text) => {
+    assert.equal(text, 'SELECT 1');
+    if (!databaseReady) throw new Error('Synthetic database unavailable.');
+    return { rows: [{ '?column?': 1 }] };
+  };
+  const server = createServer(
+    createHttpHandler({
+      query,
+      metrics,
+      isMqttReady: () => mqttReady,
+      logger: {
+        error(message) {
+          assert.fail(message);
+        },
+      },
+    })
+  );
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const address = server.address();
+  const origin = `http://127.0.0.1:${address.port}`;
+
+  const unavailableReadiness = await fetch(`${origin}/ready`);
+  assert.equal(unavailableReadiness.status, 503);
+  await unavailableReadiness.json();
+
+  let response = await fetch(`${origin}/metrics`);
+  let body = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), PROMETHEUS_CONTENT_TYPE);
+  assert.ok(body.includes('dt_datacenter_backend_mqtt_messages_total{outcome="accepted"} 1'));
+  assert.ok(body.includes('dt_datacenter_backend_mqtt_messages_total{outcome="duplicate"} 1'));
+  assert.ok(body.includes('dt_datacenter_backend_mqtt_messages_total{outcome="rejected"} 1'));
+  assert.match(body, /dt_datacenter_backend_mqtt_connected 1/);
+  assert.match(body, /dt_datacenter_backend_postgresql_ready 0/);
+  assert.match(body, /dt_datacenter_backend_http_requests_total 2/);
+  assert.match(body, /dt_datacenter_backend_http_errors_total 1/);
+  assert.match(
+    body,
+    /dt_datacenter_backend_last_successful_ingestion_timestamp_seconds 1700000001/
+  );
+
+  mqttReady = true;
+  databaseReady = true;
+  const ready = await fetch(`${origin}/ready`);
+  assert.equal(ready.status, 200);
+  await ready.json();
+
+  response = await fetch(`${origin}/metrics`);
+  body = await response.text();
+  assert.match(body, /dt_datacenter_backend_postgresql_ready 1/);
+  assert.match(body, /dt_datacenter_backend_http_requests_total 4/);
+  assert.match(body, /dt_datacenter_backend_http_errors_total 1/);
+});

@@ -1,0 +1,43 @@
+menu "DT_DataCenter"
+
+    config DT_SITE_ID
+        string "Canonical site_id"
+        default ""
+
+    config DT_DEVICE_ID
+        string "Canonical device_id"
+        default ""
+
+    config DT_WIFI_SSID
+        string "Wi-Fi station SSID"
+        default ""
+
+    config DT_WIFI_PASSWORD
+        string "Wi-Fi station password"
+        default ""
+        help
+            Keep populated sdkconfig files local and never commit credentials.
+
+    config DT_MQTT_BROKER_URI
+        string "MQTT broker URI"
+        default ""
+        help
+            Use mqtt:// for isolated local development or mqtts:// for TLS with
+            certificate validation.
+
+    config DT_MQTT_USERNAME
+        string "MQTT username"
+        default ""
+
+    config DT_MQTT_PASSWORD
+        string "MQTT password"
+        default ""
+        help
+            Keep populated sdkconfig files local and never commit credentials.
+
+    config DT_MQTT_RECONNECT_TIMEOUT_MS
+        int "MQTT reconnect delay (milliseconds)"
+        range 1000 600000
+        default 10000
+
+endmenu
