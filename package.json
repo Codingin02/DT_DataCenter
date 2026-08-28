@@ -3,11 +3,11 @@
   "scripts": {
     "backend": "node backend/server.js",
     "backup:database": "node scripts/postgres-backup.js backup",
-    "test": "node --test backend/*.test.js",
+    "test": "node --test backend/*.test.js frontend/*.test.js",
     "test:database": "psql -X --file database/tests/foundation.sql",
     "test:database:restore": "node scripts/postgres-backup.js verify",
-    "lint": "eslint backend scripts/*.js eslint.config.js",
-    "format:check": "prettier --check backend scripts/*.js docs/contracts firmware/ESP32S3_DataCenter/README.md README.md eslint.config.js package.json .prettierrc.json .github/workflows/ci.yml",
+    "lint": "eslint backend frontend scripts/*.js eslint.config.js",
+    "format:check": "prettier --check backend frontend scripts/*.js docs/contracts firmware/ESP32S3_DataCenter/README.md README.md eslint.config.js package.json .prettierrc.json .github/workflows/ci.yml",
     "check": "npm run lint && npm run format:check && npm test"
   },
   "dependencies": {

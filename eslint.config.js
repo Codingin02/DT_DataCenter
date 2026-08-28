@@ -2,7 +2,7 @@ import js from '@eslint/js';
 
 export default [
   {
-    files: ['backend/**/*.js', 'scripts/**/*.js', 'eslint.config.js'],
+    files: ['backend/**/*.js', 'frontend/**/*.js', 'scripts/**/*.js', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
