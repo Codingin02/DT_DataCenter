@@ -1,13 +1,13 @@
 # DT_DataCenter — Canonical PRD for Codex
 
 **Project:** DT_DataCenter
-**Physical object:** Data Center, Laboratorium Sistem Cerdas
+**Physical object:** One lower-environment rack in the Data Center, Laboratorium Sistem Cerdas
 **Document role:** Product and implementation contract for Codex
 **Repository root:** `E:\Projects\Digital_Twin`
 **Canonical PRD path:** `E:\Projects\Digital_Twin\docs\PRD.md`
-**Current maturity target:** R1 Representation + R2 Replication
+**Current maturity target:** R1 Representation only
 **Current data direction:** Physical → Virtual
-**Future maturity:** R3 Reality + R4 Relational, owned by a later Digital Twin team
+**Out of current scope:** R2 Replication, R3 Reality, R4 Relational
 **Status:** Canonical current-scope requirements
 
 ---
@@ -33,13 +33,12 @@ Codex MUST preserve the project as a staged Digital Twin of the Data Center in L
 
 The following terms are intentional:
 
-- `MUST`: mandatory for the current project.
-- `MUST NOT`: prohibited for the current project.
+- `MUST`: mandatory for the current R1 project.
+- `MUST NOT`: prohibited for the current R1 project.
 - `SHOULD`: preferred unless a concrete project constraint justifies another choice.
 - `MAY`: allowed but not required.
 - `TBD`: unresolved and MUST NOT be invented by Codex.
 - `GATE`: requires real evidence or explicit user/supervisor decision before implementation.
-- `FUTURE`: reserved for the later R3/R4 team and MUST NOT be implemented in current scope.
 
 Codex MUST distinguish a missing requirement from a `TBD`.
 
@@ -49,7 +48,11 @@ A `TBD` is not permission to guess.
 
 ## 2. Product vision
 
-`DT_DataCenter` MUST create a validated virtual counterpart of the physical Data Center in Laboratorium Sistem Cerdas and then replicate selected real physical and operational conditions into that counterpart using real empirical data.
+`DT_DataCenter` MUST create a validated R1 virtual representation of the physical Data Center in Laboratorium Sistem Cerdas using real empirical data.
+
+The active physical scope is one rack in the lower rack/server environment. The upper
+server is reserved for supervisor research and is outside every discovery, test,
+deployment, configuration, and monitoring action performed by this project.
 
 The system MUST combine:
 
@@ -59,28 +62,10 @@ The system MUST combine:
 - selected native server/IT telemetry;
 - a canonical persisted Twin state;
 - WebGL 3D visualization;
-- spatial temperature visualization attached to the real 3D geometry;
-- a separate humidity representation;
-- an Augmented Reality view for the Replication deliverable;
 - traceability from a digital value back to its physical source;
-- measurable synchronization behavior.
+- physical-to-digital verification evidence.
 
-The current project MUST stop at:
-
-```text
-R1 Representation
-        ↓
-R2 Replication
-```
-
-The current project MUST NOT implement:
-
-```text
-R3 Reality
-R4 Relational
-```
-
-The long-term vision may become bidirectional, but the current implementation is deliberately one-way:
+The current project is R1 Representation only. Its data direction is:
 
 ```text
 PHYSICAL ─────────────────────────────► VIRTUAL
@@ -98,7 +83,7 @@ Representation → Replication → Reality → Relational
 
 The levels increase in capability, complexity, and development effort.
 
-The current thesis/project implementation is intentionally limited to the first two levels.
+The current thesis/project implementation is intentionally limited to the first level.
 
 ### 3.1 R1 Representation
 
@@ -117,80 +102,25 @@ Representation MUST include:
 
 A beautiful GLB without real identity, coordinates, physical telemetry, and traceability does not satisfy Representation.
 
-### 3.2 R2 Replication
-
-Replication MUST use the architecture and data established in Representation.
-
-Replication MUST:
-
-- virtually duplicate selected components or variables;
-- use real empirical inputs from the physical system;
-- reproduce the selected state/output consistently for the same input and configuration;
-- continuously update the virtual counterpart from real measurements;
-- remain physical → virtual only;
-- expose the same canonical state to WebGL and AR.
-
-### 3.3 R3 Reality — OUT OF SCOPE
-
-Reality/R3 is not current scope.
-
-Codex MUST NOT implement or claim current support for:
-
-- independent virtual what-if scenarios;
-- virtual runs intended to predict future physical outcomes;
-- optimization based on hypothetical inputs;
-- independent virtual behavior after the physical source is removed;
-- AI/ML scenario prediction;
-- predictive thermal simulation claimed as R3.
-
-The word "reality" when describing the physical world MUST NOT be confused with maturity stage `Reality/R3`.
-
-### 3.4 R4 Relational — OUT OF SCOPE
-
-Relational/R4 is not current scope.
-
-Codex MUST NOT implement:
-
-- bidirectional physical/virtual control;
-- autonomous decision making;
-- automatic HVAC control;
-- actuator commands;
-- automatic server restart;
-- automatic remediation;
-- self-adjustment;
-- self-calibration driven by AI;
-- ML/AI decision engines;
-- virtual → physical commands.
-
-Those capabilities are FUTURE handoff items only.
-
 ---
 
 ## 4. Mandatory advisor directives translated into project requirements
 
-The following directives are treated as frozen current-project intent:
-
-1. The physical object is the Data Center in Laboratorium Sistem Cerdas.
-2. The project uses gradual/staged Digital Twin adoption.
-3. The current maturity stops at Representation and Replication.
-4. The current implementation is one-way physical → virtual.
-5. The real physical space MUST be reconstructed into a 3D counterpart.
-6. The 3D counterpart MUST eventually be connected to real sensor data.
-7. Environmental sensor data MUST travel through the ESP32-S3 edge path.
-8. Data MUST reach a server-side digital interface.
-9. The Digital Twin MUST be viewable through WebGL.
-10. Temperature MUST affect the 3D object/space appearance, not exist only as isolated sensor dots.
-11. Humidity MUST be represented independently from temperature.
-12. AR is part of the Replication deliverable.
-13. Edge/local computing MUST carry the latency-critical R1/R2 path.
-14. Public cloud MUST NOT be required for the realtime local Twin path.
-15. Cloud capability MAY be added later for archive, backup, heavy analytics, or future deep learning.
-16. Pareto prioritization SHOULD be used to implement high-value data-center assets and variables first.
-17. Gaussian spatial weighting MAY be used for the R1/R2 thermal field, but MUST be validated.
-18. Gaussian motion for actuators is FUTURE because actuators are outside current one-way R1/R2 scope.
-19. TIA-942 is an infrastructure reference, not an excuse to invent thermal compliance thresholds.
-20. WebGL is a hard requirement.
-21. Unity is not an active implementation path unless the supervisor explicitly requires Unity itself.
+1. The physical object is one lower-environment rack in the Data Center, Laboratorium Sistem Cerdas; the upper server is no-touch.
+2. The active maturity is R1 Representation only.
+3. The current implementation is one-way physical → virtual.
+4. The real physical space MUST be reconstructed into a 3D counterpart and connected to real data for acceptance.
+5. Mechanical acquisition and communication use an ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8; the physical marking remains unverified.
+6. Temperature and humidity use two DFRobot Fermion SEN0331 modules with Sensirion SHT31-DIS-B over separate 100 kHz I2C controllers.
+7. Sensor A uses I2C0 on SDA GPIO8/SCL GPIO9; sensor B uses I2C1 on SDA GPIO10/SCL GPIO11. Both use high-repeatability measurements at approximately 1 Hz with mandatory CRC validation.
+8. Sound acquisition uses the INMP441 digital I2S MEMS microphone with a 24-bit source and 48 kHz target.
+9. ESP32-S3 owns acquisition, validation, conversion, acoustic processing, Wi-Fi, and MQTT. The ESP32 ADC is not used for these digital sensors.
+10. Data MUST reach the server-side canonical digital interface.
+11. The Digital Twin MUST be viewable through WebGL.
+12. Public cloud MUST NOT be required for the local Twin path.
+13. Pareto prioritization SHOULD focus work on high-value data-center assets and variables.
+14. TIA-942 is a data-center infrastructure reference; formal compliance requires applicable current-standard evidence.
+15. Unresolved physical verification, acoustic calibration, identity/time provisioning, and credentials MUST NOT be invented.
 
 ---
 
@@ -275,33 +205,19 @@ Codex MUST follow this decision ladder:
 6. Implement the smallest complete change.
 ```
 
-Codex MUST work one coherent step at a time and MUST NOT jump to a later subsystem before the current dependency is ready.
+Codex MUST keep each change coherent and MUST NOT enter another subsystem before its dependencies and authorization are ready.
 
 Codex SHOULD group related work within the same subsystem rather than repeatedly stopping for trivial confirmations.
 
 ---
 
-## 7. Validation and checkpoint discipline
+## 7. Validation discipline
 
 Codex MUST run focused automated checks that are appropriate to the change.
 
-Codex MUST NOT interrupt the user after every small step with ceremonial validation.
+Codex MUST NOT interrupt the user after every small change with ceremonial validation.
 
-The default user-facing checkpoint cadence is:
-
-```text
-approximately every 10 coherent implementation steps
-```
-
-A checkpoint MAY happen earlier only when:
-
-- an actual error or breakage occurs;
-- a hard decision gate blocks progress;
-- real physical data is required;
-- real hardware information is required;
-- the user explicitly asks for validation.
-
-At a checkpoint, Codex SHOULD report only:
+At completion or a genuine gate, Codex SHOULD report only:
 
 ```text
 what changed
@@ -362,15 +278,11 @@ telemetry validation
 backend ingestion
 canonical current-state logic
 realtime API/state distribution
-ESP32-S3 firmware source
-ESP-IDF configuration stored in repository
+ESP32-S3 acquisition and communication firmware after implementation gates
 Three.js/WebGL application
 GLB programmatic validation
 glTF Transform operations
 semantic asset binding
-thermal interpolation implementation
-humidity visualization logic
-AR web/application integration after its gate
 Prometheus configuration stored in repository
 Grafana provisioning files stored in repository
 Docker/Compose files if justified
@@ -456,17 +368,11 @@ Docker Desktop as development convenience only
 
 VS Code is the working editor, but this PRD is not a VS Code tutorial.
 
-### 11.2 Firmware and edge
+### 11.2 Hardware and firmware
 
-```text
-MCU: ESP32-S3
-Firmware: ESP-IDF
-Primary ESP-IDF: 5.5.5
-Fallback ESP-IDF: 5.4.4
-Messaging: MQTT
-```
+The fixed hardware and digital interfaces are defined in the sensor hardware policy and hardware-role contract below. `docs/contracts/foundation.md` preserves the hardware-neutral identity and telemetry mapping.
 
-Codex MUST NOT replace ESP32-S3 with another MCU unless the user explicitly changes the platform.
+`firmware/esp32s3_datacenter` is the active ESP-IDF project. It targets ESP32-S3 and contains direct dual-SHT31 acquisition, bounded INMP441 I2S acquisition, the one-second measurement runtime, local DC-removed RMS/peak diagnostic dBFS processing, Wi-Fi station transport, MQTT QoS-1 publication, retained device status, Last Will, and SNTP-backed source time. Physical operation, network provisioning, clock accuracy, and acoustic calibration remain unverified.
 
 ### 11.3 Data and messaging
 
@@ -533,84 +439,37 @@ If the supervisor explicitly states that Unity itself is mandatory, that becomes
 
 ## 12. High-level Digital Twin architecture
 
-The advisor's example architecture is adapted as a pattern:
+The canonical physical source path is:
 
 ```text
-physical object
-    ↓
-sensor/camera interface
-    ↓
-digital interface
-    ↓
-network
-    ↓
-human / 3D interface
+SEN0331 A ── I2C0, GPIO8/GPIO9 ──┐
+SEN0331 B ── I2C1, GPIO10/GPIO11 ├──► ESP32-S3 acquisition / processing
+INMP441 ──── digital I2S ─────────┘              │
+                                                  ▼
+                                            Wi-Fi / MQTT
+                                                  │
+                                                  ▼
+                                           Server ingestion
 ```
 
-For `DT_DataCenter`, the canonical architecture is:
+The server maintains the same hardware-neutral canonical path:
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│ PHYSICAL DATA CENTER                                    │
-│ Laboratorium Sistem Cerdas                              │
-│                                                          │
-│ Room                                                     │
-│ ├── Rack                                                 │
-│ │   ├── Server                                           │
-│ │   └── Environmental Sensors                            │
-│ ├── Selected physical infrastructure                     │
-│ ├── Camera/capture source [manual/optional runtime]      │
-│ └── Native IT telemetry                                  │
-└──────────────────────────────┬───────────────────────────┘
-                               │
-                               │ physical → virtual
-                               ▼
-┌──────────────────────────────────────────────────────────┐
-│ EDGE / SOURCE INTERFACE                                  │
-│                                                          │
-│ ESP32-S3 + ESP-IDF                                       │
-│ ├── temperature                                          │
-│ ├── humidity                                             │
-│ └── future approved physical sensors                     │
-│                                                          │
-│ Native server/exporter/API                               │
-│ ├── CPU                                                  │
-│ ├── RAM                                                  │
-│ ├── disk                                                 │
-│ ├── network                                              │
-│ └── service/host health                                  │
-└──────────────────────────────┬───────────────────────────┘
-                               ▼
-┌──────────────────────────────────────────────────────────┐
-│ DIGITAL INTERFACE                                        │
-│                                                          │
-│ Mosquitto MQTT                                           │
-│       ↓                                                  │
-│ Ingestion + validation + idempotency                     │
-│       ↓                                                  │
-│ Canonical measurement                                    │
-│       ↓                                                  │
-│ PostgreSQL                                               │
-│ ├── registry                                             │
-│ ├── measurement history                                  │
-│ └── canonical current state                              │
-│       ↓                                                  │
-│ Realtime application interface                           │
-└──────────────────────────────┬───────────────────────────┘
-                               ▼
-┌──────────────────────────────────────────────────────────┐
-│ HUMAN INTERFACE                                          │
-│                                                          │
-│ Three.js + WebGL 2                                       │
-│ ├── registered GLB                                       │
-│ ├── asset inspection                                     │
-│ ├── continuous thermal field                             │
-│ ├── separate humidity mode                               │
-│ └── freshness / source state                             │
-│                                                          │
-│ AR                                                       │
-│ └── reads the same canonical Twin state                  │
-└──────────────────────────────────────────────────────────┘
+Environmental MQTT ──► validation + idempotency ──┐
+                                                 ▼
+Native server/exporter/API ───────────► canonical measurements
+                                                 │
+                                                 ▼
+                                       PostgreSQL
+                                       registry / history / current state
+                                                 │
+                                                 ▼
+                                       HTTP snapshot + SSE
+                                                 │
+                                                 ▼
+                                       Three.js / WebGL
+                                       registered GLB / asset inspection
+                                       freshness / source state
 ```
 
 ---
@@ -632,20 +491,18 @@ PERSISTED HISTORY
         ↓
 CANONICAL CURRENT STATE
         ↓
-        ├── WebGL
-        └── AR
+      WebGL
 ```
 
 Incorrect:
 
 ```text
 sensor → separate WebGL database
-sensor → separate AR database
 sensor → Grafana as product storage
 sensor → random MongoDB mirror
 ```
 
-WebGL and AR MUST NOT maintain competing sources of truth.
+WebGL MUST consume canonical state without maintaining a competing source of truth.
 
 ---
 
@@ -693,8 +550,7 @@ Identifiers MUST remain stable across:
 - telemetry;
 - current state;
 - GLB semantic bindings;
-- WebGL inspection;
-- AR resolution.
+- WebGL inspection.
 
 ### 14.3 Physical-to-digital telemetry
 
@@ -754,7 +610,7 @@ difference/error
 verification note
 ```
 
-Exact scientific verification procedures depend on the real sensor and calibration plan and remain TBD until hardware is selected.
+Exact scientific verification procedures and calibration remain TBD for the fixed sensor hardware.
 
 ---
 
@@ -767,13 +623,13 @@ R1 passes only when all applicable criteria below are demonstrated with real pro
 - selected servers/assets have stable identity when they are in scope;
 - GLB nodes can be mapped to canonical assets;
 - a canonical coordinate system is defined;
-- production sensor positions used for spatial visualization are verified;
-- real physical telemetry reaches the digital interface;
+- sensor positions included in the R1 physical representation are registered and verified;
+- after the wiring, timing, identity, and calibration gates, real SEN0331 temperature + humidity and INMP441 sound-level measurements reach the digital interface through the ESP32-S3;
 - message identity, unit, timestamps, quality, and freshness are preserved;
 - accepted measurements are historically persisted;
 - canonical current state exists;
 - stale/offline/unknown semantics exist;
-- selected native server metrics follow an exporter/API path rather than being faked through ESP32;
+- selected native server metrics follow an exporter/API path rather than the environmental MCU chain;
 - WebGL asset inspection can resolve the relevant canonical state;
 - a displayed physical value can be traced back to its physical source;
 - verification evidence exists for selected physical-vs-digital measurements;
@@ -783,105 +639,7 @@ A mere working 3D viewer does not pass R1.
 
 ---
 
-## 16. R2 Replication requirements
-
-Replication starts only after the required Representation foundation exists.
-
-### 16.1 Empirical input
-
-Replication MUST operate on real empirical physical data for acceptance.
-
-Synthetic data MAY be used in unit/integration tests, but MUST be clearly labeled as synthetic and MUST NOT be presented as production evidence.
-
-### 16.2 Selected variable replication
-
-Initial high-priority replication variables are:
-
-```text
-temperature
-humidity
-asset position/identity
-selected server health
-selected server/network condition
-freshness/online state
-```
-
-Additional sensors MAY be added later only after their hardware and use case are approved.
-
-### 16.3 Same input, same result
-
-For deterministic mapping functions:
-
-```text
-same input measurements
-+ same configuration
-+ same semantic/coordinate mapping
-=
-same virtual replicated result
-```
-
-The system MUST contain automated deterministic tests for pure mapping/interpolation logic.
-
-### 16.4 One-way rule
-
-Replication remains:
-
-```text
-physical → virtual
-```
-
-The virtual counterpart MUST NOT command the physical system.
-
-### 16.5 Shared WebGL and AR state
-
-The same canonical current state MUST drive:
-
-```text
-WebGL
-AR
-```
-
-No independent AR database is allowed.
-
-### 16.6 Measured synchronization
-
-Replication MUST measure synchronization timing instead of merely claiming "real-time".
-
-The architecture SHOULD capture:
-
-```text
-source_ts
-received_at
-canonical_state_updated_at
-client_received_at
-client_rendered_at
-```
-
----
-
-## 17. R2 Replication acceptance criteria
-
-R2 passes only when all applicable criteria are demonstrated:
-
-- real measurements update the virtual counterpart;
-- the selected physical components/variables are replicated;
-- temperature becomes a continuous spatial field on/around the relevant 3D geometry;
-- only verified-position sensors influence the production thermal field;
-- invalid sensors are excluded from the field;
-- stale sensors are excluded from the field;
-- insufficient sensor coverage produces `UNKNOWN` or degraded confidence, not invented temperature;
-- same input + same configuration produces the same deterministic virtual result;
-- humidity remains a distinct data/visualization mode;
-- selected real server state is represented on the same asset hierarchy;
-- WebGL and AR read the same canonical state;
-- synchronization latency is instrumented and measured;
-- offline/stale source state is visible;
-- AR can resolve a physical rack/asset to the correct `asset_id` and current state;
-- no virtual-to-physical command capability exists.
-
----
-
-## 18. Pareto implementation principle
+## 16. Pareto implementation principle
 
 The project SHOULD use Pareto prioritization as a scope strategy.
 
@@ -904,12 +662,11 @@ Pareto is NOT:
 
 - a Digital Twin validation formula;
 - a substitute for measurement;
-- a thermal model;
 - an excuse to invent 80/20 numerical acceptance thresholds.
 
 ---
 
-## 19. Canonical asset hierarchy
+## 17. Canonical asset hierarchy
 
 The minimum logical hierarchy SHOULD support:
 
@@ -940,7 +697,7 @@ Codex MUST NOT treat example identifiers as proof that those exact assets physic
 
 ---
 
-## 20. Canonical coordinate system and spatial registration
+## 18. Canonical coordinate system and spatial registration
 
 Spatial registration is a hard requirement.
 
@@ -951,14 +708,14 @@ RealityScan / GLB coordinates
             │
             ▼
 CANONICAL WORLD SPACE
-      ▲              ▲
-      │              │
-sensor coordinates  AR alignment
+            ▲
+            │
+   sensor / asset coordinates
 ```
 
-### 20.1 Sensor spatial contract
+### 18.1 Sensor spatial contract
 
-A sensor that influences a spatial field MUST have at least:
+A spatially represented sensor MUST have at least:
 
 ```text
 sensor_id
@@ -974,7 +731,7 @@ position_version
 
 Optional orientation data MAY be added when required.
 
-### 20.2 Asset transform contract
+### 18.2 Asset transform contract
 
 A spatial asset SHOULD support:
 
@@ -988,86 +745,57 @@ model_node_id
 transform_version
 ```
 
-### 20.3 Registration rule
+### 18.3 Registration rule
 
-Without verified registration:
-
-```text
-sensor position
-≠ trusted thermal influence position
-```
-
-Therefore an unverified sensor MUST NOT influence the production spatial field.
-
-Raw values from such a sensor MAY still appear in diagnostic views with an explicit registration warning.
+Unverified sensor positions and asset transforms MUST remain distinguishable from verified physical locations. Raw values MAY appear with an explicit registration warning. Production coordinates MUST come from physical registration evidence.
 
 ---
 
-## 21. Sensor hardware policy
+## 19. Sensor hardware policy
 
-Exact sensor hardware is TBD.
+The mechanical hardware is fixed:
 
-Codex MUST NOT invent or lock:
+| Role                              | Hardware                                       | Digital interface                                          |
+| --------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| Measurement and communication MCU | ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8 | I2C, I2S, Wi-Fi, and MQTT                                  |
+| Temperature + humidity            | 2x DFRobot Fermion SHT31 SEN0331               | Sensor A: I2C0, GPIO8/GPIO9; sensor B: I2C1, GPIO10/GPIO11 |
+| Microphone                        | INMP441 digital I2S MEMS                       | I2S, 24-bit source, 48 kHz target                          |
 
-```text
-DHT22
-SHT31
-BME280
-PIR model
-airflow sensor model
-power sensor model
-door sensor model
-```
+The firmware target assumes 16 MB Flash and 8 MB Octal PSRAM. The marketplace board MUST be described as an ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8, not as an official Espressif development-board variant. Module marking and memory capacity remain physical verification gates.
 
-unless the team explicitly selects the BOM.
+SEN0331 SHT31 is a DIGITAL I2C sensor. INMP441 is a DIGITAL I2S microphone with its own internal ADC/filter. The ESP32 ADC is not used for either sensor type.
 
-The architecture MUST remain sensor-agnostic at the backend and Twin-state layers.
+The two SEN0331 modules intentionally use separate 100 kHz I2C controllers. Both use high-repeatability acquisition at approximately 1 Hz with mandatory CRC validation. Sensor placement and physical address-selection state remain unverified; the software MUST keep the two sources independently traceable without naming them by placement.
 
-Changing a physical sensor model SHOULD NOT require redesigning:
+INMP441 uses WS GPIO4, BCLK GPIO5, and DIN GPIO6, with VDD at 3V3 and common GND. L/R is specified as GND for the left channel. Philips I2S carries 24-bit two's-complement source data in two 32-clock slots at 48 kHz, targeting 3.072 MHz BCLK below the microphone's 3.2 MHz limit. These are software/wiring targets; physical connections and clocks remain unverified.
 
-```text
-MQTT contract
-backend canonical measurement
-PostgreSQL canonical model
-WebGL asset state
-AR asset state
-```
+ESP-IDF 5.5.5 on ESP32-S3 packs 24-bit stereo RX into six bytes per frame. Acquisition uses four internal DMA descriptors of 480 frames (2,880 bytes and 10 ms each), with MCLK multiple 384, 32-bit slots, and 32-clock WS width. Only left-slot samples are sign-extended into `int32_t`; the right slot is ignored. A single task owns bounded reads. Invalid lengths, timeouts, and detected DMA overwrite/overflow stop capture explicitly. Raw PCM remains local in fixed RAM buffers and is neither logged, persisted, nor transmitted.
 
-provided the source still conforms to the approved telemetry contract.
+Microphone calibration and the SPL/dBA/Leq policy remain TBD. Production network credentials remain external configuration and MUST NOT be committed or logged.
+
+The backend, MQTT telemetry contract, and PostgreSQL canonical model remain hardware-neutral. The sound-level metric/unit/quality contract depends on the calibration and SPL/dBA/Leq decisions; it MUST NOT be invented or added during cleanup.
 
 ---
 
-## 22. ESP32-S3 firmware responsibilities
+## 20. Hardware-role contract
 
-ESP32-S3 is the fixed environmental edge platform.
+### 20.1 ESP32-S3 measurement and communication
 
-Firmware MUST:
+ESP32-S3 owns authoritative sensor acquisition, validation, engineering-unit conversion, acoustic processing, source identity, measurement sequencing, Wi-Fi, MQTT, TLS, and network connection state. SEN0331 connects directly through I2C0 and I2C1. INMP441 connects directly through I2S.
 
-- identify the device;
-- identify each sensor channel;
-- read approved sensor hardware;
-- normalize each metric into the agreed telemetry contract;
-- include source timestamp when clock validity is known;
-- include a boot identity;
-- include a monotonic sequence within the boot;
-- publish quality information;
-- publish MQTT telemetry;
-- support a Last Will/offline strategy;
-- support secure MQTT configuration for production;
-- avoid hardcoding development-only credentials into committed source;
-- remain compatible with the selected ESP-IDF baseline.
+### 20.2 Source identity and precision
 
-Firmware MUST NOT:
+The two SEN0331 sources MUST retain separate stable `sensor_id` values. Raw SHT31 words and calculated floating-point values MUST retain their available precision inside firmware; no averaging or placement-derived naming is allowed without physical evidence. Network retry MUST reuse canonical message identity and MUST NOT replace source measurement time with server receipt time.
 
-- make autonomous R4 decisions;
-- command HVAC;
-- restart servers;
-- implement actuator control for the current project;
-- fabricate missing measurements.
+### 20.3 Firmware and physical gates
+
+`docs/contracts/foundation.md` defines the canonical identity, telemetry, status, timestamp, and retry semantics. The direct ESP32-S3 architecture does not require a parallel MQTT schema or PostgreSQL model.
+
+INMP441 physical wiring, measured clocks and capture stability, acoustic calibration, provisioned stable identities, boot-identity uniqueness in operation, and synchronized-clock accuracy require physical verification evidence before acceptance. Firmware already implements random boot identity generation and SNTP-backed source time; it does not treat either as physically verified.
 
 ---
 
-## 23. Canonical telemetry message
+## 21. Canonical telemetry message
 
 A canonical environmental telemetry message SHOULD follow this shape:
 
@@ -1075,7 +803,7 @@ A canonical environmental telemetry message SHOULD follow this shape:
 {
   "schema_version": "1.0",
   "site_id": "lab-sc",
-  "device_id": "esp32s3-edge-01",
+  "device_id": "environment-source-01",
   "boot_id": "REAL_BOOT_ID",
   "seq": 12345,
   "sensor_id": "temp-r01-inlet-01",
@@ -1088,9 +816,9 @@ A canonical environmental telemetry message SHOULD follow this shape:
 }
 ```
 
-This is a contract example, not fake production data.
+This is a contract example, not production inventory or data. Edge ownership and mapping to these unchanged server fields are defined in `docs/contracts/foundation.md`.
 
-### 23.1 Required semantic fields
+### 21.1 Required semantic fields
 
 At minimum:
 
@@ -1109,7 +837,7 @@ ts
 quality
 ```
 
-### 23.2 Server-added fields
+### 21.2 Server-added fields
 
 The ingestion side MUST add authoritative server-side timestamps such as:
 
@@ -1125,7 +853,7 @@ persisted_at
 canonical_state_updated_at
 ```
 
-### 23.3 Idempotency
+### 21.3 Idempotency
 
 For QoS 1 telemetry, a recommended logical idempotency key is:
 
@@ -1137,11 +865,11 @@ Exact database constraints MAY evolve, but duplicate handling is mandatory.
 
 ---
 
-## 24. MQTT contract
+## 22. MQTT contract
 
 MQTT is the physical environmental telemetry transport.
 
-### 24.1 Broker
+### 22.1 Broker
 
 Current baseline:
 
@@ -1151,7 +879,7 @@ Mosquitto
 
 Codex SHOULD keep broker-specific assumptions isolated so deployment remains configurable.
 
-### 24.2 QoS
+### 22.2 QoS
 
 Environmental telemetry SHOULD initially use:
 
@@ -1163,11 +891,11 @@ because delivery is at-least-once and duplicate delivery is possible.
 
 Therefore the ingestion layer MUST be duplicate-tolerant.
 
-### 24.3 Last Will
+### 22.3 Last Will
 
-Each ESP32 source SHOULD publish a Last Will/offline state sufficient for the Twin to determine unexpected disconnection.
+Each MQTT communication endpoint SHOULD publish a Last Will/offline state sufficient for the Twin to determine unexpected disconnection.
 
-### 24.4 Topic design
+### 22.4 Topic design
 
 Topics MUST carry routing identity but MUST NOT become the only source of message identity.
 
@@ -1180,7 +908,7 @@ dt/<site_id>/telemetry/<device_id>/<sensor_id>/<metric>
 Example:
 
 ```text
-dt/lab-sc/telemetry/esp32s3-edge-01/temp-r01-inlet-01/temperature
+dt/lab-sc/telemetry/environment-source-01/temp-r01-inlet-01/temperature
 ```
 
 Device state MAY use:
@@ -1191,11 +919,11 @@ dt/<site_id>/device/<device_id>/status
 
 The payload remains canonical and versioned even if topic structure changes.
 
-### 24.5 Development security
+### 22.5 Development security
 
 Plain MQTT on port 1883 MAY be used only for isolated development/LAN conditions that are explicitly treated as development.
 
-### 24.6 Production security
+### 22.6 Production security
 
 Production SHOULD use authenticated MQTT over TLS with certificate validation according to the final lab network/security policy.
 
@@ -1203,7 +931,7 @@ Exact certificate lifecycle and port policy are TBD until production-server/netw
 
 ---
 
-## 25. Ingestion and validation
+## 23. Ingestion and validation
 
 The ingestion service MUST:
 
@@ -1226,7 +954,7 @@ Unknown schema versions MUST be rejected or quarantined explicitly.
 
 ---
 
-## 26. PostgreSQL responsibilities
+## 24. PostgreSQL responsibilities
 
 PostgreSQL is the canonical persisted database.
 
@@ -1253,25 +981,25 @@ verification_records
 
 Exact SQL table names MAY differ if a cleaner normalized design is justified.
 
-### 26.1 History
+### 24.1 History
 
 Historical measurements MUST be append-oriented and traceable.
 
-### 26.2 Current state
+### 24.2 Current state
 
-Current state MUST provide efficient access to the latest accepted state needed by WebGL and AR.
+Current state MUST provide efficient access to the latest accepted state needed by WebGL.
 
-### 26.3 Registry
+### 24.3 Registry
 
 Physical identity, digital identity, and spatial identity MUST be stored in an auditable registry.
 
-### 26.4 No competing canonical database
+### 24.4 No competing canonical database
 
 Codex MUST NOT create a second canonical database without an explicit architecture change.
 
 ---
 
-## 27. Canonical Twin state
+## 25. Canonical Twin state
 
 The canonical state is the product-level source consumed by client interfaces.
 
@@ -1303,7 +1031,7 @@ A conceptual asset state:
 }
 ```
 
-The exact API representation is TBD with the backend choice, but the semantics are mandatory.
+The example is conceptual. The implemented read contract is `docs/contracts/current-state.schema.json`, documented in `docs/contracts/foundation.md`.
 
 The current state MUST distinguish:
 
@@ -1319,16 +1047,16 @@ as appropriate.
 
 ---
 
-## 28. Native server/IT telemetry
+## 26. Native server/IT telemetry
 
-Not all telemetry belongs on ESP32.
+Not all telemetry belongs on the environmental MCU chain.
 
 Environmental/physical sensors use:
 
 ```text
 physical sensor
     ↓
-ESP32-S3
+ESP32-S3 acquisition / conversion / acoustic processing / Wi-Fi
     ↓
 MQTT
 ```
@@ -1354,17 +1082,17 @@ host availability
 selected service health
 ```
 
-Exact metrics depend on the real laboratory server and monitoring policy.
+Native server NIC telemetry remains gated by the real laboratory server and monitoring policy. Its interface, exact metrics, and acquisition method MUST be selected only after authorized server discovery.
 
-Codex MUST NOT route CPU/RAM/network data through ESP32 merely to make every source use one transport.
+Codex MUST NOT route CPU/RAM/network data through the environmental sensor path merely to make every source use one transport.
 
-### 28.1 Exporter selection gate
+### 26.1 Exporter selection gate
 
 Current development host is Windows and uses Windows Exporter.
 
 Final server exporter MUST be selected after real server OS discovery.
 
-### 28.2 Redfish
+### 26.2 Redfish
 
 Redfish MAY be used only if the real server/hardware supports it and the use case requires it.
 
@@ -1372,9 +1100,9 @@ Redfish MUST NOT become a dependency by assumption.
 
 ---
 
-## 29. Realtime application interface
+## 27. Realtime application interface
 
-WebGL and AR require current state updates.
+WebGL requires current state updates from the canonical backend.
 
 The backend SHOULD provide:
 
@@ -1384,20 +1112,13 @@ The backend SHOULD provide:
 - source/freshness metadata;
 - stable state/version identity.
 
-Transport MAY use:
-
-```text
-HTTP/HTTPS
-WebSocket/WSS
-```
-
-or another minimal web-compatible mechanism justified by the backend choice.
+The existing Node.js runtime provides HTTP snapshot reads and Server-Sent Events (SSE). HTTPS is part of the production security policy.
 
 Codex SHOULD prefer one clean realtime mechanism rather than building multiple overlapping transports.
 
 ---
 
-## 30. 3D representation pipeline contract
+## 28. 3D representation pipeline contract
 
 The physical reconstruction workflow is:
 
@@ -1427,7 +1148,7 @@ runtime GLB
 Three.js / WebGL
 ```
 
-### 30.1 MASTER model
+### 28.1 MASTER model
 
 The MASTER model is for:
 
@@ -1440,7 +1161,7 @@ future reprocessing
 
 It MUST NOT automatically be used as the browser runtime model.
 
-### 30.2 RUNTIME model
+### 28.2 RUNTIME model
 
 The RUNTIME model is for:
 
@@ -1448,11 +1169,10 @@ The RUNTIME model is for:
 browser delivery
 semantic binding
 interaction
-thermal visualization
-AR/WebGL consumption when applicable
+WebGL consumption
 ```
 
-### 30.3 Optimization rule
+### 28.3 Optimization rule
 
 Codex MUST inspect the actual model before optimization.
 
@@ -1482,7 +1202,7 @@ Optimization decisions MUST be evidence-based.
 
 ---
 
-## 31. Semantic 3D binding
+## 29. Semantic 3D binding
 
 Every critical runtime asset that needs live state SHOULD have a semantic binding between:
 
@@ -1512,7 +1232,7 @@ Codex MUST NOT rely only on visual mesh position to guess asset identity.
 
 ---
 
-## 32. Three.js and WebGL requirements
+## 30. Three.js and WebGL requirements
 
 WebGL is mandatory.
 
@@ -1526,135 +1246,17 @@ The web application MUST:
 - allow inspection of selected rack/server assets;
 - retrieve canonical current state;
 - show source freshness;
-- support thermal visualization;
-- support a separate humidity mode;
 - remain compatible with the current WebGL 2 baseline.
 
 The web application MUST NOT become a separate data authority.
 
 ---
 
-## 33. Temperature visualization — hard requirement
+## 31. Environmental reference and standards
 
-Temperature MUST NOT be represented primarily as isolated sensor dots.
+### 31.1 TIA-942
 
-Diagnostic sensor markers MAY exist.
-
-The main Replication visualization MUST transform real sensor data and real sensor positions into a spatial thermal field that is visually carried by the data-center/rack geometry.
-
-Conceptual pipeline:
-
-```text
-REAL TEMPERATURE VALUES
-        +
-VERIFIED SENSOR POSITIONS
-        ↓
-spatial weighting/interpolation
-        ↓
-CONTINUOUS THERMAL FIELD
-        ↓
-3D rack / zone / data-center geometry
-```
-
-The user MUST still be able to inspect the raw source value for traceability.
-
----
-
-## 34. Gaussian spatial thermal model
-
-Gaussian weighting is an approved candidate for R1/R2 spatial interpolation.
-
-For sensor `i` at position `p_i` and a sampled 3D position `x`:
-
-```text
-w_i(x) = exp(-||x - p_i||² / (2σ_i²))
-```
-
-A weighted temperature estimate is:
-
-```text
-T(x) = Σ(w_i(x) * T_i) / Σ(w_i(x))
-```
-
-### 34.1 Hard guardrails
-
-The thermal model MUST exclude:
-
-```text
-invalid sensor data
-stale sensor data
-sensor without verified coordinates
-sensor explicitly disabled for the field
-```
-
-When the model lacks enough trustworthy coverage:
-
-```text
-result = UNKNOWN / insufficient confidence
-```
-
-not:
-
-```text
-result = invented temperature
-```
-
-### 34.2 Sigma
-
-Final `σ` is TBD.
-
-Codex MUST NOT hardcode a scientifically authoritative sigma before real sensor placement and validation data exist.
-
-Sigma SHOULD be configurable.
-
-### 34.3 Scientific claim boundary
-
-Gaussian spatial interpolation is:
-
-```text
-a spatial estimation / visualization method
-```
-
-It is NOT:
-
-```text
-CFD
-airflow simulation
-physics-grade thermal simulation
-ASHRAE compliance proof
-predictive R3 model
-```
-
-Codex MUST use scientifically honest naming in UI, code, and documentation.
-
----
-
-## 35. Humidity requirements
-
-Humidity is a required environmental data class when the selected hardware provides it.
-
-Humidity MUST NOT be mathematically blended with temperature into one arbitrary color metric.
-
-The interface MUST provide a separate humidity mode.
-
-If verified humidity sensor density/placement is sufficient for a spatial field, the project MAY create a humidity spatial field.
-
-If coverage is insufficient, humidity SHOULD be shown by asset/zone/source without inventing false spatial precision.
-
-A validated dew-point derivation MAY be added if:
-
-- temperature and RH are available;
-- the formula is selected explicitly;
-- unit handling is correct;
-- its purpose is documented.
-
----
-
-## 36. Environmental reference and standards
-
-### 36.1 TIA-942
-
-ANSI/TIA-942-C is a data-center infrastructure reference covering areas such as:
+TIA-942 is a data-center infrastructure reference. The project-supplied PDF is ANSI/TIA-942-2005, a historical edition and not the current revision. It covers areas such as:
 
 ```text
 telecommunications
@@ -1666,11 +1268,9 @@ safety
 physical security
 ```
 
-The project MAY map relevant discovered infrastructure against those domains.
+The project MAY use those domains as infrastructure context. Formal compliance claims are outside current scope unless assessed against the applicable current standard with supporting evidence.
 
-Codex MUST NOT fabricate a formal TIA-942 compliance assessment.
-
-### 36.2 ASHRAE thermal guidance
+### 31.2 ASHRAE thermal guidance
 
 Thermal/environmental limits SHOULD be grounded in an appropriate thermal source such as ASHRAE guidance and actual equipment manufacturer limits.
 
@@ -1710,62 +1310,7 @@ without a real compliance basis.
 
 ---
 
-## 37. AR requirement for Replication
-
-AR is a required R2 deliverable.
-
-AR MUST consume the same canonical Twin state as WebGL.
-
-Minimum conceptual flow:
-
-```text
-physical rack
-    ↓
-AR alignment / identification
-    ↓
-resolve asset_id
-    ↓
-canonical current state
-    ↓
-overlay
-```
-
-Minimum overlay SHOULD include:
-
-```text
-rack identity
-temperature
-humidity when available
-freshness
-selected health/state
-```
-
-### 37.1 AR implementation gate
-
-The project is web-first.
-
-WebXR is a preferred candidate because the current primary runtime is web-based.
-
-However:
-
-```text
-target AR device = TBD
-target browser = TBD
-WebXR compatibility = GATE
-anchor/marker method = TBD
-```
-
-Codex MUST NOT assume every Android phone supports the required AR path.
-
-### 37.2 Unity XR gate
-
-Unity/AR Foundation is not the active implementation.
-
-It becomes relevant only if the supervisor explicitly requires Unity itself or a native Unity AR deliverable.
-
----
-
-## 38. Observability
+## 32. Observability
 
 Observability supports engineering reliability and deployment health.
 
@@ -1786,13 +1331,13 @@ selected server metrics
 
 Prometheus MUST NOT replace canonical measurement history.
 
-Grafana MUST NOT become the primary Digital Twin operator interface when the requirement is the WebGL/AR Twin.
+Grafana MUST NOT become the primary Digital Twin operator interface when the requirement is the WebGL R1 Twin.
 
 Grafana is an engineering/monitoring plane.
 
 ---
 
-## 39. Freshness, stale, offline, and unknown semantics
+## 33. Freshness, stale, offline, and unknown semantics
 
 The Digital Twin MUST distinguish data age and source availability.
 
@@ -1808,51 +1353,21 @@ invalid
 
 The exact time thresholds are TBD until real sensor sampling and network behavior are known.
 
-A stale value MUST NOT continue influencing the thermal field indefinitely.
-
 An offline device MUST be visible as offline/stale rather than silently appearing healthy.
 
 ---
 
-## 40. Synchronization and latency
-
-"Real-time" MUST be measured.
-
-The implementation SHOULD instrument:
-
-```text
-source_ts
-received_at
-canonical_state_updated_at
-client_received_at
-client_rendered_at
-```
-
-An initial local-LAN engineering target MAY be:
-
-```text
-p95 backend receive → browser state update <= 2 seconds
-```
-
-This excludes the physical sensor sampling interval.
-
-This target is provisional and MAY be revised after real sensor/network measurement.
-
-The instrumentation MUST remain even if the numeric target changes.
-
----
-
-## 41. Security requirements
+## 34. Security requirements
 
 Development and production security are different profiles.
 
-### 41.1 Development
+### 34.1 Development
 
 Development MAY use local-only services and isolated LAN configurations.
 
 Development credentials MUST NOT be committed as reusable production secrets.
 
-### 41.2 Production
+### 34.2 Production
 
 Production SHOULD require:
 
@@ -1860,7 +1375,6 @@ Production SHOULD require:
 authenticated MQTT
 MQTT over TLS
 HTTPS
-WSS when WebSocket is used
 database access restricted to required services
 least-privilege service credentials
 time synchronization
@@ -1871,7 +1385,7 @@ firewall rules
 
 Final policy depends on the real laboratory server/network.
 
-### 41.3 Secret handling
+### 34.3 Secret handling
 
 Secrets MUST NOT be committed in source.
 
@@ -1879,22 +1393,25 @@ Codex SHOULD use environment/config mechanisms appropriate to the selected runti
 
 ---
 
-## 42. Edge, local network, and cloud boundaries
+## 35. Edge, local network, and cloud boundaries
 
-The R1/R2 critical path MUST function without a public-cloud dependency.
+The R1 critical path MUST function without a public-cloud dependency.
 
 Required conceptual path:
 
 ```text
 physical data center
-        ↓
-ESP32-S3 / native server source
-        ↓
+├── environmental sources
+│       ↓
+│   ESP32-S3 acquisition / conversion / acoustic processing / Wi-Fi
+└── native server source
+        │
+        ▼
 local/edge network
         ↓
 lab-hosted Digital Twin services
         ↓
-WebGL / AR
+WebGL [R1]
 ```
 
 Public cloud MAY later be used for:
@@ -1903,8 +1420,6 @@ Public cloud MAY later be used for:
 archive
 off-site backup if policy allows
 heavy analytics
-future deep-learning workloads
-future ML training
 ```
 
 Public cloud MUST NOT be required to:
@@ -1912,8 +1427,6 @@ Public cloud MUST NOT be required to:
 ```text
 receive a local temperature sensor
 update the canonical current state
-render a local thermal field
-operate the local Replication Twin
 ```
 
 Cloud-provider selection is TBD.
@@ -1922,7 +1435,7 @@ Codex MUST NOT install AWS/Azure/GCP tooling until a provider is explicitly sele
 
 ---
 
-## 43. Development laptop profile
+## 36. Development laptop profile
 
 During development, the laptop MAY host:
 
@@ -1945,7 +1458,7 @@ Codex MUST NOT redesign the product around the laptop as the permanent deploymen
 
 ---
 
-## 44. Production migration objective
+## 37. Production migration objective
 
 The final runtime is intended to move to the server located in the laboratory/data-center environment being twinned.
 
@@ -1990,7 +1503,7 @@ Exact service placement may change after discovery, but application contracts SH
 
 ---
 
-## 45. Production Server Discovery Gate
+## 38. Production Server Discovery Gate
 
 Codex MUST NOT guess the final laboratory server specification.
 
@@ -2049,30 +1562,15 @@ The deployment architecture is finalized only after this gate.
 
 ---
 
-## 46. Backend implementation gate
+## 39. Backend implementation baseline
 
-The backend language/framework is currently TBD.
+The existing backend uses Node.js 24, ESM, and Node's built-in HTTP server. MQTT ingestion, PostgreSQL persistence, snapshot reads, SSE, device status, health/readiness, and observability are hardware-neutral R1 infrastructure.
 
-Codex MUST NOT choose a backend solely because Node.js or Python is already installed.
-
-Before locking the backend, choose based on:
-
-```text
-repository fit
-MQTT integration
-PostgreSQL integration
-realtime web delivery
-maintainability
-deployment compatibility
-team capability
-minimum dependency burden
-```
-
-Once selected, Codex SHOULD avoid parallel backend frameworks.
+Reuse this implementation. The MCU change does not require another backend framework or a new database/MQTT architecture.
 
 ---
 
-## 47. Data contract versioning
+## 40. Data contract versioning
 
 External contracts MUST be versioned.
 
@@ -2085,7 +1583,6 @@ canonical state/API version when breaking changes occur
 3D model version
 semantic binding version
 coordinate registration version
-thermal model configuration version
 ```
 
 Breaking contract changes MUST be explicit.
@@ -2094,7 +1591,7 @@ Codex MUST NOT silently change field meaning while keeping the same schema versi
 
 ---
 
-## 48. Error and quality model
+## 41. Error and quality model
 
 Telemetry quality MUST be explicit.
 
@@ -2107,7 +1604,7 @@ invalid
 unknown
 ```
 
-Exact quality rules are sensor-specific and remain TBD until hardware is selected.
+Exact acquisition quality rules remain TBD for the fixed hardware and measurement policy.
 
 Malformed, impossible, or rejected values MUST NOT silently update production current state.
 
@@ -2115,7 +1612,7 @@ The system SHOULD retain enough diagnostics to explain why a measurement was rej
 
 ---
 
-## 49. No fake production data
+## 42. No fake production data
 
 Synthetic fixtures are allowed for automated tests.
 
@@ -2137,11 +1634,11 @@ instead of inventing reality.
 
 ---
 
-## 50. Primary user interactions
+## 43. Primary user interactions
 
-The current WebGL Twin SHOULD support these product interactions:
+The current WebGL Twin SHOULD support these R1 interactions:
 
-### 50.1 Inspect a rack
+### 43.1 Inspect a rack
 
 User selects a rack.
 
@@ -2154,7 +1651,7 @@ source freshness
 selected child server state
 ```
 
-### 50.2 Inspect raw source evidence
+### 43.2 Inspect raw source evidence
 
 User can trace an environmental state back to:
 
@@ -2167,35 +1664,17 @@ quality
 position/registration status
 ```
 
-### 50.3 View thermal mode
+### 43.3 Detect stale/offline state
 
-User enables the temperature mode.
-
-The rack/area geometry carries the continuous thermal field.
-
-### 50.4 View humidity mode
-
-User enables humidity mode.
-
-Humidity is shown independently from temperature.
-
-### 50.5 Detect stale/offline state
-
-The user can tell when a displayed state is stale, offline, unknown, or based on insufficient coverage.
-
-### 50.6 AR inspection
-
-At R2 completion, a supported AR client can resolve a physical asset and show the same canonical state.
+The user can tell when a displayed state is stale, offline, or unknown.
 
 ---
 
-## 51. Non-goals for the current project
+## 44. Non-goals for the current project
 
 The following are explicitly NOT current deliverables:
 
 ```text
-R3 predictive Reality
-R4 Relational autonomy
 bidirectional control
 actuator control
 automatic HVAC adjustment
@@ -2206,7 +1685,6 @@ AI decision making
 ML prediction
 what-if scenario engine
 CFD airflow simulation
-physics-grade thermal simulation
 full TIA-942 compliance certification
 automatic cloud provider deployment
 Kubernetes
@@ -2222,61 +1700,62 @@ Do not implement these "just in case".
 
 ---
 
-## 52. Explicit TBD and decision gates
+## 45. Explicit TBD and decision gates
 
-The following MUST remain unresolved until real evidence or explicit approval exists:
+These details remain unresolved and MUST NOT be inferred from the fixed board/sensor selection:
 
-| Area | Status |
-|---|---|
-| Exact temperature sensor | TBD |
-| Exact humidity sensor | TBD |
-| Additional physical sensor models | TBD |
-| Number of sensors | TBD |
-| Final sensor placement | TBD |
-| Sensor sampling interval | TBD |
-| Sensor calibration process | TBD |
-| Final freshness thresholds | TBD |
-| Backend language/framework | TBD |
-| Final server OS/specification | TBD |
-| Final container/runtime choice | TBD after server discovery |
-| Production service manager | TBD |
-| Production network/VLAN | TBD |
-| Production ports | TBD |
-| Production TLS/certificate policy | TBD |
-| AR target device | TBD |
-| AR target browser | TBD |
-| WebXR compatibility | GATE |
-| WebXR vs Unity XR | GATE |
-| Whether Unity itself is mandatory | SUPERVISOR GATE |
-| AR anchor/marker/alignment method | TBD |
-| Camera as runtime sensor | TBD |
-| Exact native server telemetry | TBD |
-| Redfish availability | TBD |
-| Final Gaussian sigma | validation gate |
-| Final thermal thresholds | hardware/site gate |
-| Final humidity field method | sensor-density gate |
-| Public cloud provider | TBD |
-| Cloud archive/backup policy | TBD |
+| Area                                                              | Status                                                                                                                             |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Physical ESP32-S3 module marking and memory capacity              | NOT VERIFIED; software targets ESP32-S3-WROOM-1-N16R8 with 16 MB Flash and 8 MB Octal PSRAM                                        |
+| Physical SHT31 address-selection state                            | TBD; firmware MUST support the valid 0x44/0x45 address without assuming a placement                                                |
+| I2C electrical wiring, pull-ups, and measured bus frequency       | Physical verification required                                                                                                     |
+| INMP441 physical channel selection                                | L/R target is GND / left; physical verification required                                                                           |
+| INMP441 GPIO mapping and physical wiring                          | WS GPIO4, BCLK GPIO5, DIN GPIO6; physical verification required                                                                    |
+| Microphone calibration                                            | TBD                                                                                                                                |
+| SPL/dBA/Leq policy                                                | TBD                                                                                                                                |
+| I2S word framing and DMA behavior                                 | Philips, 24-bit source, two 32-clock slots, 48 kHz; physical timing and DMA stability verification required                        |
+| Edge identity provisioning and unique boot generation mechanism   | Configuration and random boot generation implemented; real identity provisioning and operational uniqueness require verification   |
+| Source clock synchronization mechanism and verified time accuracy | SNTP-backed source time implemented; endpoint provisioning and time accuracy require verification                                  |
+| Acoustic diagnostic metric/unit                                   | `sound_rms_dbfs` and `sound_peak_dbfs` in dBFS; calibrated SPL/dBA/Leq semantics remain gated                                      |
+| Final sensor placement and physical registration                  | TBD                                                                                                                                |
+| Sensor verification/calibration procedure                         | TBD                                                                                                                                |
+| Final freshness thresholds                                        | TBD                                                                                                                                |
+| Production network credentials                                    | TBD; never committed or logged                                                                                                     |
+| Final server OS/specification                                     | TBD                                                                                                                                |
+| Final container/runtime choice                                    | TBD after server discovery                                                                                                         |
+| Production service manager                                        | TBD                                                                                                                                |
+| Production network/VLAN                                           | TBD                                                                                                                                |
+| Production ports                                                  | TBD                                                                                                                                |
+| Production TLS/certificate policy                                 | TBD                                                                                                                                |
+| Camera as runtime sensor                                          | TBD                                                                                                                                |
+| Native server NIC metrics/interface/acquisition method            | TBD after authorized server discovery                                                                                              |
+| Electrical real-power acceptance and approved meter               | Supervisor confirmation required; if required, an approved physical meter and real verification evidence block final R1 acceptance |
+| Redfish availability                                              | TBD                                                                                                                                |
+| Public cloud provider                                             | TBD                                                                                                                                |
+| Cloud backup policy                                               | TBD                                                                                                                                |
 
-Codex MUST NOT resolve these by assumption.
+The ESP32-S3 module target, two SEN0331 units, independent I2C controllers and pins, 100 kHz bus rate, high-repeatability 1 Hz environmental cadence, mandatory CRC, INMP441 type, and 48 kHz acoustic target are fixed software decisions. Physical verification and metrology gates above remain unresolved.
 
 ---
 
-## 53. Frozen decisions
+## 46. Frozen decisions
 
 The following are not TBD unless the user explicitly changes the PRD:
 
 ```text
 Project object       = Data Center, Laboratorium Sistem Cerdas
 Project name         = DT_DataCenter
-Current maturity     = R1 Representation + R2 Replication
+Current maturity     = R1 Representation only
 Current direction    = physical → virtual
-R3 Reality           = out of scope
-R4 Relational        = out of scope
-Bidirectional        = future
-Actuator control     = future
-MCU                   = ESP32-S3
-Firmware              = ESP-IDF
+Physical scope         = one lower-environment rack; upper server is no-touch
+Measurement/comms MCU  = ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
+Target memory config   = 16 MB Flash + 8 MB Octal PSRAM; physical verification pending
+Temperature + humidity = 2x DFRobot Fermion SHT31 SEN0331, digital I2C
+Sensor A interface     = I2C0, SDA GPIO8, SCL GPIO9, 100 kHz
+Sensor B interface     = I2C1, SDA GPIO10, SCL GPIO11, 100 kHz
+Environmental mode     = high repeatability, approximately 1 Hz, CRC mandatory
+Microphone             = INMP441, digital I2S, 24-bit source, 48 kHz target
+ESP32-S3 responsibility = acquisition / validation / conversion / acoustic processing / Wi-Fi / MQTT
 Messaging family      = MQTT
 Current broker        = Mosquitto
 Canonical database    = PostgreSQL
@@ -2287,9 +1766,6 @@ WebGL                 = hard requirement
 Primary 3D runtime    = Three.js + WebGL 2
 Runtime 3D format     = GLB/glTF
 Programmatic 3D tool  = glTF Transform
-AR                    = required for Replication
-Temperature display   = continuous spatial 3D field
-Humidity              = separate data/visualization class
 Fake production data  = forbidden
 Manual GUI 3D work    = external handoff
 Production server     = real lab server after discovery
@@ -2298,134 +1774,36 @@ Public cloud realtime dependency = forbidden
 
 ---
 
-## 54. Implementation order
+## 47. Implementation boundaries
 
-Codex MUST respect dependency order.
+Reuse completed hardware-neutral infrastructure. The edge architecture change MUST NOT create a parallel backend, telemetry schema, database model, or WebGL runtime.
 
-A practical current-project order is:
-
-```text
-architecture/contracts
-        ↓
-database schema
-        ↓
-MQTT ingestion
-        ↓
-canonical current state
-        ↓
-realtime API
-        ↓
-ESP32-S3 physical source path
-        ↓
-native server telemetry adapter
-        ↓
-3D runtime artifact integration
-        ↓
-semantic binding
-        ↓
-WebGL Representation
-        ↓
-thermal/humidity Replication
-        ↓
-latency/freshness instrumentation
-        ↓
-AR Replication
-        ↓
-production server discovery
-        ↓
-production migration
-```
-
-Substantial frontend work SHOULD NOT outrun the backend contracts it needs.
+Firmware functionality MUST be implemented only when its required hardware facts, protocol decisions, and metrology policy are available. Substantial frontend work SHOULD NOT outrun the backend contracts it needs.
 
 ---
 
-## 55. 50-step Codex execution sequence
+## 48. R1 acceptance dependencies
 
-This sequence is a planning contract, not a demand to perform all steps in one response.
+R1 acceptance requires all applicable evidence in section 15 and section 49, including:
 
-### Steps 1–10 — Foundation and canonical contracts
+- a buildable direct ESP32-S3 firmware path;
+- physical module, wiring, power, I2C, I2S, Wi-Fi, MQTT, LWT, and TLS verification;
+- real dual-SEN0331 validation with independent source identity;
+- real INMP441 capture and an approved acoustic calibration/measurement policy;
+- complete physical telemetry traceability through the canonical server state;
+- authorized native server NIC telemetry discovery and implementation;
+- final 3D, spatial, and WebGL verification;
+- production deployment evidence on the approved lower-environment server target.
 
-1. Read `AGENTS.md` and this PRD.
-2. Inspect existing repository structure without re-auditing healthy global tools.
-3. Define/finalize canonical identity and telemetry contracts in repository docs/schema.
-4. Define the canonical asset hierarchy.
-5. Define the canonical coordinate-system contract.
-6. Create PostgreSQL migration foundation for registries and measurements.
-7. Add current-state persistence model.
-8. Implement MQTT ingestion boundary with schema validation.
-9. Add QoS-1 duplicate/idempotency handling.
-10. Expose the first canonical current-state read contract.
-
-**Checkpoint 10:** summarize only the coherent foundation, focused checks, and real TBDs.
-
-### Steps 11–20 — Real physical source path
-
-11. Prepare ESP32-S3 firmware structure around the canonical telemetry contract.
-12. Implement stable device identity.
-13. Implement boot identity and sequence behavior.
-14. Implement approved sensor adapters only after BOM selection.
-15. Implement MQTT publishing.
-16. Implement Last Will/source status.
-17. Keep production TLS support configurable.
-18. Integrate real environmental telemetry with ingestion.
-19. Add the selected native server telemetry adapter available on the development environment.
-20. Add focused source/ingestion observability.
-
-**Checkpoint 20:** report real source flow and unresolved physical hardware items.
-
-### Steps 21–30 — Representation
-
-21. Receive the approved runtime-candidate GLB from the manual workflow.
-22. Programmatically inspect the GLB.
-23. Optimize with glTF Transform only when profiling justifies it.
-24. Register model version and coordinate-system metadata.
-25. Create semantic asset-to-GLB-node bindings.
-26. Load runtime GLB in Three.js/WebGL.
-27. Implement asset picking/inspection.
-28. Connect WebGL assets to canonical current state.
-29. Show freshness/unknown/offline semantics.
-30. Record physical-vs-digital Representation verification evidence.
-
-**Checkpoint 30:** evaluate R1 acceptance criteria without repeating unrelated tool audits.
-
-### Steps 31–40 — Replication
-
-31. Implement production-safe thermal-source filtering.
-32. Implement Gaussian spatial weighting as a deterministic pure function.
-33. Add automated deterministic tests for interpolation.
-34. Make sigma configurable.
-35. Bind thermal field to registered 3D geometry.
-36. Add insufficient-coverage/UNKNOWN behavior.
-37. Implement separate humidity mode.
-38. Integrate selected native server state with the same asset hierarchy.
-39. Instrument synchronization latency through the client.
-40. Implement the AR path after the device/alignment gate and connect it to the same canonical state.
-
-**Checkpoint 40:** evaluate R2 evidence, latency measurements, and AR gate status.
-
-### Steps 41–50 — Production migration and final evidence
-
-41. Perform the real laboratory-server discovery gate.
-42. Record OS/hardware/network facts.
-43. Choose production service/deployment method from real facts.
-44. Map development configuration to production configuration.
-45. Apply production authentication/TLS policy.
-46. Deploy the canonical services without application-code fork.
-47. Verify time synchronization, persistence, source freshness, and observability.
-48. Re-run physical-vs-digital Representation evidence on the real environment.
-49. Re-run Replication evidence with real sensor data and measured latency.
-50. Produce the R1/R2 handoff package for the next Digital Twin team.
-
-**Checkpoint 50:** final Definition of Done and explicit R3/R4 handoff.
+If the supervisor requires electrical real-power telemetry, the absence of an approved physical meter and real verification evidence blocks final R1 acceptance. Simulated readings cannot satisfy it.
 
 ---
 
-## 56. Definition of Done — current project
+## 49. Definition of Done — current project
 
-The current project is complete only when both R1 and R2 are satisfied.
+The current project is complete when R1 is satisfied.
 
-### 56.1 R1 Definition of Done
+### 49.1 R1 Definition of Done
 
 All of the following MUST be true:
 
@@ -2434,8 +1812,8 @@ real physical scope is identified
 approved 3D representation exists
 critical asset identities are stable
 coordinate system is documented
-sensor coordinates used by spatial fields are verified
-real physical telemetry reaches the digital interface
+sensor positions included in the R1 representation are registered and verified
+real SEN0331 temperature + humidity and INMP441 sound-level measurements reach the digital interface through the direct ESP32-S3 path after their implementation gates
 telemetry is validated
 measurement history is persisted
 canonical current state exists
@@ -2446,28 +1824,7 @@ physical data is traceable from virtual state
 selected physical-vs-digital verification evidence exists
 ```
 
-### 56.2 R2 Definition of Done
-
-All of the following MUST be true:
-
-```text
-real measurements update the virtual counterpart
-selected physical variables are replicated
-thermal state is spatially carried by 3D geometry
-only trustworthy registered sensor data influences the field
-stale/invalid data is excluded
-insufficient coverage is explicit
-same input/config gives deterministic mapping result
-humidity is independently represented
-selected native server state joins the same asset hierarchy
-WebGL uses canonical state
-AR uses canonical state
-AR can resolve a physical asset
-synchronization latency is measured
-one-way physical → virtual rule is preserved
-```
-
-### 56.3 Forbidden completion shortcuts
+### 49.2 Forbidden completion shortcuts
 
 The project MUST NOT be declared complete because:
 
@@ -2481,13 +1838,13 @@ dummy data animates
 a 3D model looks visually similar
 ```
 
-Those are components, not R1/R2 completion by themselves.
+Those are components, not R1 completion by themselves.
 
 ---
 
-## 57. Handoff package for the future R3/R4 team
+## 50. R1 delivery package
 
-At completion, the project SHOULD leave the next team a stable foundation:
+At R1 completion, the project SHOULD provide:
 
 ```text
 canonical asset registry
@@ -2502,11 +1859,7 @@ canonical current-state contract
 realtime API/state mechanism
 runtime GLB
 semantic asset manifest
-thermal interpolation implementation
-thermal model configuration
-humidity-state implementation
 physical verification evidence
-latency measurements
 freshness semantics
 production configuration
 security boundary
@@ -2514,37 +1867,21 @@ known limitations
 open research questions
 ```
 
-The future team may then pursue:
-
-```text
-R3 Reality
-    ↓
-R4 Relational
-```
-
-without rebuilding R1/R2 foundations.
-
 ---
 
-## 58. Research/source basis for project interpretation
+## 51. Research/source basis for project interpretation
 
 This PRD is grounded in the project materials supplied by the user, including:
 
-### 58.1 Hyre, Harris, Osho et al. — Digital twins: Representation, Replication, Reality, and Relational (4Rs)
+### 51.1 Hyre, Harris, Osho et al. — Digital twins: Representation, Replication, Reality, and Relational (4Rs)
 
 Key project use:
 
 - 4R maturity sequence;
 - Representation as understanding the physical system and building collection/storage architecture;
-- identifying critical data and using sensors for comparison/verification;
-- Replication as virtual duplication of selected components/variables;
-- Replication using data/architecture from Representation;
-- same-input reproduction of physical output;
-- gradual adoption from Representation toward higher maturity;
-- R3 what-if/prediction boundary;
-- R4 autonomy/bidirectional/AI boundary.
+- identifying critical data and using sensors for comparison/verification.
 
-### 58.2 Ramadhani et al. — Virtual Avatar Representation in the Digital Twin: A Photogrammetric Three-Dimensional Modeling Approach
+### 51.2 Ramadhani et al. — Virtual Avatar Representation in the Digital Twin: A Photogrammetric Three-Dimensional Modeling Approach
 
 Key project use:
 
@@ -2556,28 +1893,25 @@ Key project use:
 
 The reported optimization result in that paper is evidence that photogrammetric output often benefits from optimization; it is NOT a triangle-count target for this data-center project.
 
-### 58.3 Prasetyo et al. — Digital Twin Framework for Human to Environment Interaction in Interactive Spaces
+### 51.3 Prasetyo et al. — Digital Twin Framework for Human to Environment Interaction in Interactive Spaces
 
 Key project use:
 
 - explicit qualitative Representation requirements;
-- explicit Replication requirements;
 - selected virtual components should use the same source data;
 - physical and virtual counterparts should remain consistent;
-- AR can participate in a real/virtual counterpart workflow;
 - 4R is a qualitative maturity framework, not a numeric scoring formula.
 
-### 58.4 Data-center and technical references
+### 51.4 Data-center and technical references
 
 The project also uses appropriate technical reference families:
 
 ```text
-ANSI/TIA-942-C for data-center infrastructure context
+project-supplied ANSI/TIA-942-2005 as a historical infrastructure reference, not the current revision
 ASHRAE data-center thermal/environmental guidance
 Espressif ESP-IDF / ESP-MQTT documentation
 OASIS MQTT specification
 Three.js/WebGL/glTF documentation
-W3C WebXR documentation
 PostgreSQL documentation
 Prometheus/Grafana documentation
 ```
@@ -2586,20 +1920,19 @@ Codex SHOULD prefer primary/official technical documentation when implementing c
 
 ---
 
-## 59. Codex guardrail checklist
+## 52. Codex guardrail checklist
 
 Before implementing a meaningful change, Codex SHOULD be able to answer:
 
 ```text
-Does this change serve R1 or R2?
+Does this change serve active R1?
 Is it physical → virtual?
 Does it preserve one canonical state?
 Does it preserve stable asset identity?
 Does it preserve spatial registration?
 Does it use real data or clearly labeled test data?
 Does it avoid inventing a TBD?
-Does it avoid R3 prediction?
-Does it avoid R4 autonomous control?
+Does it avoid prediction and autonomous control?
 Does it avoid a duplicate database?
 Does it avoid a duplicate renderer?
 Does it avoid an unnecessary dependency?
@@ -2611,7 +1944,7 @@ If the answer reveals a scope violation, Codex MUST stop that implementation pat
 
 ---
 
-## 60. Canonical short-form project contract
+## 53. Canonical short-form project contract
 
 When context is tight, Codex may use this summary, but it MUST defer to the full PRD for detail:
 
@@ -2620,20 +1953,25 @@ DT_DataCenter is a staged Digital Twin of the Data Center in
 Laboratorium Sistem Cerdas.
 
 CURRENT SCOPE:
-R1 Representation
-R2 Replication
+R1 Representation only
 
 CURRENT DIRECTION:
 physical → virtual only
 
 PHYSICAL ENVIRONMENTAL PATH:
-real sensor
-→ ESP32-S3 / ESP-IDF
+SEN0331 sensor A → I2C0, GPIO8/GPIO9, 100 kHz ─┐
+SEN0331 sensor B → I2C1, GPIO10/GPIO11, 100 kHz ├→ ESP32-S3 board carrying
+INMP441 → digital I2S, 24-bit, 48 kHz target ───┘  ESP32-S3-WROOM-1-N16R8
+→ authoritative acquisition / validation / conversion / acoustic processing
+→ Wi-Fi / MQTT
 → MQTT / Mosquitto
 → validation + idempotent ingestion
 → PostgreSQL measurement/history/current state
 → realtime application interface
-→ Three.js/WebGL + AR
+→ Three.js/WebGL
+
+SEN0331 is digital I2C. INMP441 has its own internal ADC/filter and outputs digital
+I2S. The ESP32 ADC is not used for these sensor inputs.
 
 NATIVE SERVER PATH:
 server/exporter/API
@@ -2645,22 +1983,6 @@ manual scan/reconstruction
 → programmatic validation/optimization
 → semantic asset binding
 → Three.js/WebGL
-
-TEMPERATURE:
-real values + verified positions
-→ validated Gaussian candidate interpolation
-→ continuous thermal field on 3D geometry
-not sensor dots only
-not CFD
-not invented data
-
-HUMIDITY:
-separate mode/data class
-
-AR:
-required in Replication
-same canonical state as WebGL
-device/alignment path remains a gate
 
 WEBGL:
 mandatory
@@ -2681,31 +2003,21 @@ development on laptop
 through configuration/deployment changes
 after real server discovery
 
-R3 REALITY:
-future, do not implement
-
-R4 RELATIONAL:
-future, do not implement
-
 CODEX STYLE:
 Ponytail
 smallest complete change
-one coherent step at a time
 no useless repetitive validation
-user-facing checkpoint around every 10 steps
 no autonomous commit/push
 do not invent TBDs
 ```
 
 ---
 
-## 61. Final instruction to Codex
+## 54. Final instruction to Codex
 
-Build only what is required to make the physical Data Center in Laboratorium Sistem Cerdas a traceable, spatially registered, real-data-driven Digital Twin through **Representation and Replication**.
+Build only what is required to make the physical Data Center in Laboratorium Sistem Cerdas a traceable, spatially registered, real-data-driven Digital Twin through **R1 Representation**.
 
 Do not dilute the project into a generic dashboard.
-
-Do not inflate the project into R3/R4.
 
 Do not replace real evidence with plausible-looking demo data.
 
@@ -2713,7 +2025,7 @@ Do not create duplicate sources of truth.
 
 Do not guess the production server.
 
-Do not guess the sensor BOM.
+Do not guess physical module verification, SHT31 address-selection state or placement, INMP441 physical verification, calibration/SPL policy, provisioning/time synchronization mechanisms, or production credentials/server details.
 
 Do not create a second 3D runtime unless explicitly required.
 

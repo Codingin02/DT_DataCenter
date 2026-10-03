@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { TextDecoder } from 'node:util';
 
 import Ajv2020 from 'ajv/dist/2020.js';
@@ -41,7 +43,8 @@ const acceptMeasurementSql = `
     $10::digital_twin.finite_number,
     $11::digital_twin.unit_code,
     $12::timestamptz,
-    $13::digital_twin.telemetry_quality
+    $13::digital_twin.telemetry_quality,
+    $14::integer
   )`;
 
 const recordRejectionSql = `
@@ -70,7 +73,25 @@ const readCurrentStateSql = `
   SELECT *
   FROM digital_twin.current_state
   WHERE asset_id = $1::digital_twin.canonical_id
-  ORDER BY metric`;
+  ORDER BY metric, sensor_id`;
+
+const readHistorySql = `
+  SELECT
+    sensor_id,
+    unit,
+    date_bin($6::integer * interval '1 second', ts, timestamptz '2000-01-01') AS bucket,
+    avg(value) AS average,
+    min(value) AS minimum,
+    max(value) AS maximum,
+    count(*) AS sample_count
+  FROM digital_twin.measurements
+  WHERE asset_id = $1::digital_twin.canonical_id
+    AND metric = $2::digital_twin.canonical_id
+    AND ($3::digital_twin.canonical_id IS NULL OR sensor_id = $3)
+    AND ts >= $4::timestamptz
+    AND ts < $5::timestamptz
+  GROUP BY sensor_id, unit, bucket
+  ORDER BY sensor_id, bucket`;
 
 const readAcceptedCurrentStateSql = `
   SELECT *
@@ -83,6 +104,126 @@ const readChangedCurrentStateSql = `
   FROM digital_twin.current_state
   WHERE state_version = ANY($1::bigint[])
   ORDER BY state_version`;
+
+const readSpatialRegistrationSql = `
+  SELECT
+    s.sensor_id,
+    s.device_id,
+    s.asset_id,
+    s.metric,
+    s.unit,
+    cs.coordinate_system_id,
+    cs.unit AS coordinate_unit,
+    cs.handedness,
+    cs.up_axis,
+    cs.registration_verified,
+    sp.position_x,
+    sp.position_y,
+    sp.position_z,
+    sp.position_verified,
+    sp.position_version,
+    sp.recorded_at
+  FROM digital_twin.sensors AS s
+  LEFT JOIN digital_twin.coordinate_systems AS cs
+    ON cs.site_id = s.site_id
+   AND cs.is_canonical
+  LEFT JOIN digital_twin.sensor_positions AS sp
+    ON sp.site_id = s.site_id
+   AND sp.sensor_id = s.sensor_id
+   AND sp.coordinate_system_id = cs.coordinate_system_id
+   AND sp.is_current
+  WHERE s.enabled
+  ORDER BY s.asset_id, s.sensor_id, s.metric`;
+
+const registerSpatialAnchorSql = `
+  WITH locked AS (
+    SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))
+  ),
+  source AS (
+    SELECT
+      s.site_id,
+      s.sensor_id,
+      s.device_id,
+      s.asset_id,
+      s.metric,
+      s.unit,
+      cs.coordinate_system_id
+    FROM digital_twin.sensors AS s
+    JOIN digital_twin.coordinate_systems AS cs
+      ON cs.site_id = s.site_id
+     AND cs.coordinate_system_id = $2::digital_twin.canonical_id
+     AND cs.is_canonical
+    CROSS JOIN locked
+    WHERE s.sensor_id = $1::digital_twin.canonical_id
+      AND s.enabled
+  ),
+  next_position AS (
+    SELECT
+      source.*,
+      COALESCE(MAX(sp.position_version), 0) + 1 AS position_version
+    FROM source
+    LEFT JOIN digital_twin.sensor_positions AS sp
+      ON sp.site_id = source.site_id
+     AND sp.sensor_id = source.sensor_id
+    GROUP BY
+      source.site_id,
+      source.sensor_id,
+      source.device_id,
+      source.asset_id,
+      source.metric,
+      source.unit,
+      source.coordinate_system_id
+  ),
+  retired AS (
+    UPDATE digital_twin.sensor_positions AS sp
+    SET is_current = false
+    FROM source
+    WHERE sp.site_id = source.site_id
+      AND sp.sensor_id = source.sensor_id
+      AND sp.is_current
+    RETURNING sp.sensor_id
+  ),
+  inserted AS (
+    INSERT INTO digital_twin.sensor_positions (
+      site_id,
+      sensor_id,
+      coordinate_system_id,
+      position_x,
+      position_y,
+      position_z,
+      position_verified,
+      position_version,
+      is_current
+    )
+    SELECT
+      next_position.site_id,
+      next_position.sensor_id,
+      next_position.coordinate_system_id,
+      $3::digital_twin.finite_number,
+      $4::digital_twin.finite_number,
+      $5::digital_twin.finite_number,
+      false,
+      next_position.position_version,
+      true
+    FROM next_position
+    CROSS JOIN (SELECT count(*) FROM retired) AS retirement_barrier
+    RETURNING *
+  )
+  SELECT
+    source.sensor_id,
+    source.device_id,
+    source.asset_id,
+    source.metric,
+    source.unit,
+    inserted.coordinate_system_id,
+    inserted.position_x,
+    inserted.position_y,
+    inserted.position_z,
+    inserted.position_verified,
+    inserted.position_version,
+    inserted.recorded_at
+  FROM inserted
+  JOIN source USING (site_id, sensor_id, coordinate_system_id)`;
 
 function validationReason(payload) {
   if (payload && Object.hasOwn(payload, 'schema_version') && payload.schema_version !== '1.0') {
@@ -179,6 +320,7 @@ export function createIngestor({
       telemetry.unit,
       telemetry.ts,
       telemetry.quality,
+      telemetry.raw_value ?? null,
     ]);
     const result = rows[0];
     if (!result || !['accepted', 'duplicate', 'rejected'].includes(result.outcome)) {
@@ -326,6 +468,14 @@ function normalizeCurrentState(row) {
     updated_at: toIsoString(row.updated_at, 'updated_at'),
   };
 
+  if (row.raw_value !== null && row.raw_value !== undefined) {
+    const rawValue = Number(row.raw_value);
+    if (!Number.isInteger(rawValue) || rawValue < 0 || rawValue > 65535) {
+      throw new Error('PostgreSQL returned an invalid raw_value.');
+    }
+    state.raw_value = rawValue;
+  }
+
   if (!validateCurrentState(state)) {
     throw new Error(
       `PostgreSQL current state violates contract: ${ajv.errorsText(validateCurrentState.errors)}`
@@ -333,6 +483,136 @@ function normalizeCurrentState(row) {
   }
 
   return state;
+}
+
+function historyResponse(assetId, metric, from, to, maxPoints, bucketSeconds, rows) {
+  const series = new Map();
+  for (const row of rows) {
+    let entry = series.get(row.sensor_id);
+    if (!entry) {
+      entry = { sensor_id: row.sensor_id, unit: row.unit, points: [] };
+      series.set(row.sensor_id, entry);
+    }
+    entry.points.push({
+      ts: toIsoString(row.bucket, 'history bucket'),
+      average: Number(row.average),
+      minimum: Number(row.minimum),
+      maximum: Number(row.maximum),
+      count: toSafeInteger(row.sample_count, 'history sample_count'),
+    });
+  }
+  return {
+    asset_id: assetId,
+    metric,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    max_points: maxPoints,
+    bucket_seconds: bucketSeconds,
+    series: [...series.values()],
+  };
+}
+
+function parseHistoryRequest(url, assetId) {
+  const metric = url.searchParams.get('metric') ?? '';
+  const sensorId = url.searchParams.get('sensor_id');
+  const from = new Date(url.searchParams.get('from') ?? '');
+  const to = new Date(url.searchParams.get('to') ?? '');
+  const maxPointsText = url.searchParams.get('max_points') ?? '1200';
+  const maxPoints = Number(maxPointsText);
+  if (
+    !canonicalIdPattern.test(assetId) ||
+    !canonicalIdPattern.test(metric) ||
+    (sensorId !== null && !canonicalIdPattern.test(sensorId)) ||
+    Number.isNaN(from.getTime()) ||
+    Number.isNaN(to.getTime()) ||
+    from >= to ||
+    !/^\d+$/.test(maxPointsText) ||
+    !Number.isSafeInteger(maxPoints) ||
+    maxPoints < 50 ||
+    maxPoints > 2000
+  ) {
+    return null;
+  }
+  const spanSeconds = (to.getTime() - from.getTime()) / 1000;
+  if (spanSeconds > 31 * 24 * 60 * 60) return null;
+  return {
+    assetId,
+    metric,
+    sensorId,
+    from,
+    to,
+    maxPoints,
+    bucketSeconds: Math.max(1, Math.ceil(spanSeconds / (maxPoints - 1))),
+  };
+}
+
+function spatialAnchorFromRow(row) {
+  return {
+    asset_id: row.asset_id,
+    coordinate_system_id: row.coordinate_system_id,
+    device_id: row.device_id,
+    metric: row.metric,
+    position: [Number(row.position_x), Number(row.position_y), Number(row.position_z)],
+    position_verified: Boolean(row.position_verified),
+    position_version: toDecimalString(row.position_version, 'position_version'),
+    registration_state: 'reference_geometry',
+    sensor_id: row.sensor_id,
+    unit: row.unit,
+  };
+}
+
+export function normalizeSpatialRegistration(rows) {
+  return {
+    anchors: rows
+      .filter((row) => row.position_version !== null && row.position_version !== undefined)
+      .map(spatialAnchorFromRow),
+    sources: rows.map((row) => ({
+      asset_id: row.asset_id,
+      coordinate_system_id: row.coordinate_system_id ?? null,
+      device_id: row.device_id,
+      metric: row.metric,
+      sensor_id: row.sensor_id,
+      unit: row.unit,
+    })),
+  };
+}
+
+function parseSpatialRegistration(body) {
+  if (
+    body === null ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    !canonicalIdPattern.test(body.sensor_id ?? '') ||
+    !canonicalIdPattern.test(body.coordinate_system_id ?? '') ||
+    !Array.isArray(body.position) ||
+    body.position.length !== 3 ||
+    !body.position.every(Number.isFinite)
+  ) {
+    return null;
+  }
+  return {
+    coordinateSystemId: body.coordinate_system_id,
+    position: body.position,
+    sensorId: body.sensor_id,
+  };
+}
+
+async function readJsonRequest(request) {
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] ?? '')) {
+    throw new Error('unsupported_media_type');
+  }
+  const chunks = [];
+  let length = 0;
+  for await (const chunk of request) {
+    length += chunk.length;
+    if (length > 4096) throw new Error('payload_too_large');
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw new Error('invalid_json');
+  }
 }
 
 export function createCurrentStateEvents() {
@@ -386,6 +666,36 @@ const safeResponseHeaders = {
   'x-content-type-options': 'nosniff',
 };
 
+const staticContentTypes = new Map([
+  ['.css', 'text/css; charset=utf-8'],
+  ['.glb', 'model/gltf-binary'],
+  ['.html', 'text/html; charset=utf-8'],
+  ['.js', 'text/javascript; charset=utf-8'],
+  ['.json', 'application/json; charset=utf-8'],
+  ['.svg', 'image/svg+xml'],
+]);
+
+const staticContentSecurityPolicy =
+  "default-src 'self'; base-uri 'none'; connect-src 'self' blob:; frame-ancestors 'none'; " +
+  "img-src 'self' blob: data:; object-src 'none'; script-src 'self'; style-src 'self'";
+
+function staticCacheHeaders(pathname, requestedPath) {
+  if (requestedPath === 'index.html') return { 'cache-control': 'no-cache' };
+  if (pathname === '/models/rack.glb') {
+    return {
+      'cache-control': 'public, max-age=3600',
+      'cdn-cache-control': 'public, max-age=86400',
+    };
+  }
+  if (
+    requestedPath.startsWith('assets/') &&
+    /-[A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$/.test(requestedPath)
+  ) {
+    return { 'cache-control': 'public, max-age=31536000, immutable' };
+  }
+  return { 'cache-control': 'no-cache' };
+}
+
 function sendBody(response, statusCode, body, contentType, extraHeaders = {}) {
   response.writeHead(statusCode, {
     'cache-control': 'no-store',
@@ -407,6 +717,60 @@ function sendJson(response, statusCode, body, extraHeaders = {}) {
   );
 }
 
+async function serveStatic(request, response, pathname, staticRoot, logger) {
+  if (!staticRoot || pathname.startsWith('/api/')) return false;
+  if (request.method !== 'GET') {
+    sendJson(response, 405, { error: 'method_not_allowed' }, { allow: 'GET' });
+    return true;
+  }
+
+  let requestedPath;
+  try {
+    requestedPath = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).slice(1);
+  } catch {
+    sendJson(response, 400, { error: 'invalid_request_target' });
+    return true;
+  }
+
+  if (requestedPath.includes('\0') || requestedPath.includes('\\')) {
+    sendJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+
+  const root = resolve(staticRoot);
+  const filePath = resolve(root, requestedPath);
+  const relativePath = relative(root, filePath);
+  if (relativePath === '..' || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
+    sendJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+
+  let body;
+  try {
+    body = await readFile(filePath);
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
+      sendJson(response, 404, { error: 'not_found' });
+    } else {
+      logger.error('Frontend asset read failed.', error);
+      sendJson(response, 500, { error: 'internal_error' });
+    }
+    return true;
+  }
+
+  sendBody(
+    response,
+    200,
+    body,
+    staticContentTypes.get(extname(filePath).toLowerCase()) ?? 'application/octet-stream',
+    {
+      'content-security-policy': staticContentSecurityPolicy,
+      ...staticCacheHeaders(pathname, requestedPath),
+    }
+  );
+  return true;
+}
+
 export function createHttpHandler({
   query,
   metrics = createMetrics(),
@@ -414,6 +778,7 @@ export function createHttpHandler({
   isMqttReady = () => false,
   isStopping = () => false,
   logger = console,
+  staticRoot,
 }) {
   return async function httpHandler(request, response) {
     metrics.recordHttpRequest();
@@ -421,13 +786,14 @@ export function createHttpHandler({
       if (response.statusCode >= 400) metrics.recordHttpError();
     });
 
-    let pathname;
+    let url;
     try {
-      pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+      url = new URL(request.url ?? '/', 'http://localhost');
     } catch {
       sendJson(response, 400, { error: 'invalid_request_target' });
       return;
     }
+    const { pathname } = url;
 
     if (pathname === '/metrics') {
       if (request.method !== 'GET') {
@@ -459,6 +825,7 @@ export function createHttpHandler({
         ...safeResponseHeaders,
       });
       response.flushHeaders();
+      response.write('event: connected\ndata: {}\n\n');
       return;
     }
 
@@ -493,8 +860,107 @@ export function createHttpHandler({
       return;
     }
 
+    if (pathname === '/api/spatial-registration') {
+      if (!['GET', 'POST'].includes(request.method)) {
+        sendJson(response, 405, { error: 'method_not_allowed' }, { allow: 'GET, POST' });
+        return;
+      }
+      if (request.method === 'GET') {
+        try {
+          const { rows } = await query(readSpatialRegistrationSql);
+          sendJson(response, 200, normalizeSpatialRegistration(rows));
+        } catch (error) {
+          logger.error('Spatial registration read failed.', error);
+          sendJson(response, 500, { error: 'internal_error' });
+        }
+        return;
+      }
+
+      let registration;
+      try {
+        registration = parseSpatialRegistration(await readJsonRequest(request));
+      } catch (error) {
+        const status =
+          error.message === 'payload_too_large'
+            ? 413
+            : error.message === 'unsupported_media_type'
+              ? 415
+              : 400;
+        sendJson(response, status, { error: error.message });
+        return;
+      }
+      if (registration === null) {
+        sendJson(response, 400, { error: 'invalid_spatial_registration' });
+        return;
+      }
+      try {
+        const { rows } = await query(registerSpatialAnchorSql, [
+          registration.sensorId,
+          registration.coordinateSystemId,
+          ...registration.position,
+        ]);
+        if (!rows[0]) {
+          sendJson(response, 409, { error: 'registration_context_unavailable' });
+          return;
+        }
+        sendJson(response, 201, spatialAnchorFromRow(rows[0]));
+      } catch (error) {
+        logger.error('Spatial registration write failed.', error);
+        sendJson(response, 500, { error: 'internal_error' });
+      }
+      return;
+    }
+
+    const historyMatch = /^\/api\/assets\/([^/]+)\/history$/.exec(pathname);
+    if (historyMatch) {
+      if (request.method !== 'GET') {
+        sendJson(response, 405, { error: 'method_not_allowed' }, { allow: 'GET' });
+        return;
+      }
+      let assetId;
+      try {
+        assetId = decodeURIComponent(historyMatch[1]);
+      } catch {
+        sendJson(response, 400, { error: 'invalid_history_query' });
+        return;
+      }
+      const selection = parseHistoryRequest(url, assetId);
+      if (selection === null) {
+        sendJson(response, 400, { error: 'invalid_history_query' });
+        return;
+      }
+      try {
+        const { rows } = await query(readHistorySql, [
+          selection.assetId,
+          selection.metric,
+          selection.sensorId,
+          selection.from.toISOString(),
+          selection.to.toISOString(),
+          selection.bucketSeconds,
+        ]);
+        sendJson(
+          response,
+          200,
+          historyResponse(
+            selection.assetId,
+            selection.metric,
+            selection.from,
+            selection.to,
+            selection.maxPoints,
+            selection.bucketSeconds,
+            rows
+          )
+        );
+      } catch (error) {
+        logger.error('History read failed.', error);
+        sendJson(response, 500, { error: 'internal_error' });
+      }
+      return;
+    }
+
     const match = /^\/api\/assets\/([^/]+)\/current-state$/.exec(pathname);
     if (!match) {
+      if (await serveStatic(request, response, pathname, staticRoot, logger)) return;
       sendJson(response, 404, { error: 'not_found' });
       return;
     }

@@ -36,6 +36,11 @@
     "value": {
       "type": "number"
     },
+    "raw_value": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
     "unit": {
       "type": "string",
       "minLength": 1,

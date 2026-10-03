@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:dt-datacenter:telemetry:1.0",
-  "title": "DT_DataCenter environmental telemetry v1",
+  "title": "DT_DataCenter telemetry v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -51,6 +51,11 @@
     "value": {
       "type": "number"
     },
+    "raw_value": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
     "unit": {
       "type": "string",
       "minLength": 1,
@@ -83,6 +88,198 @@
         "unit": {
           "const": "percent_rh"
         }
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "sound_rms_dbfs"
+        },
+        "unit": {
+          "const": "dBFS"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "sound_peak_dbfs"
+        },
+        "unit": {
+          "const": "dBFS"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "enum": ["net_bytes_received_total", "net_bytes_sent_total"]
+        },
+        "unit": {
+          "const": "bytes"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "enum": [
+            "net_packets_received_total",
+            "net_packets_sent_total",
+            "net_packets_received_errors_total",
+            "net_packets_outbound_errors_total",
+            "net_packets_received_discarded_total",
+            "net_packets_outbound_discarded_total",
+            "brownout_count",
+            "reset_count",
+            "mqtt_reconnect_count",
+            "crc_error_count",
+            "i2c_retry_count",
+            "sensor_reset_count",
+            "i2s_error_count",
+            "dma_overrun_count"
+          ]
+        },
+        "unit": {
+          "const": "count"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": { "const": "supply_voltage_v" },
+        "unit": { "const": "V" },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": { "const": "supply_current_ma" },
+        "unit": { "const": "mA" },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "net_current_bandwidth_bytes"
+        },
+        "unit": {
+          "const": "bytes_per_second"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "enum": [
+            "net_receive_throughput_bytes_per_second",
+            "net_transmit_throughput_bytes_per_second"
+          ]
+        },
+        "unit": {
+          "const": "bytes_per_second"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "enum": [
+            "net_link_utilization_ratio",
+            "net_operation_status",
+            "power_factor_ratio",
+            "clip_ratio",
+            "stuck_sample_ratio"
+          ]
+        },
+        "unit": {
+          "const": "ratio"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "uptime_s"
+        },
+        "unit": {
+          "const": "s"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "voltage_v"
+        },
+        "unit": {
+          "const": "V"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "current_a"
+        },
+        "unit": {
+          "const": "A"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "active_power_w"
+        },
+        "unit": {
+          "const": "W"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "apparent_power_va"
+        },
+        "unit": {
+          "const": "VA"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "frequency_hz"
+        },
+        "unit": {
+          "const": "Hz"
+        },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "const": "energy_wh_total"
+        },
+        "unit": {
+          "const": "Wh"
+        },
+        "raw_value": false
       }
     }
   ],

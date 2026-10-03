@@ -1,0 +1,1331 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Twin Data Center</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-asset-id="dt-datacenter-rack">
+    <div class="app-shell">
+      <header class="app-bar">
+        <div class="product-identity">
+          <h1>Digital Twin Data Center</h1>
+        </div>
+        <div class="app-context">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol id="workspace-path">
+              <li>Twin</li>
+            </ol>
+          </nav>
+          <p class="target-context">
+            <span>Asset context</span>
+            <strong data-asset-context>Not configured</strong>
+          </p>
+        </div>
+        <div class="app-state-cluster" aria-label="Operational status">
+          <p class="app-state">
+            <span>Live</span>
+            <strong class="status-value" data-status="stream" data-tone="unknown">Disabled</strong>
+          </p>
+          <p class="app-state">
+            <span>Device</span>
+            <strong class="status-value" data-status="device" data-tone="unknown"
+              >Not observed</strong
+            >
+          </p>
+          <p class="app-state">
+            <span>Geometry</span>
+            <strong class="status-value" data-status="geometry" data-tone="unknown"
+              >Unavailable</strong
+            >
+          </p>
+        </div>
+      </header>
+
+      <main class="operator-shell">
+        <nav class="navigation-rail" aria-label="Workspace navigation">
+          <a
+            class="rail-destination"
+            data-navigation
+            data-workspace="twin"
+            href="#twin-workspace"
+            aria-current="page"
+            title="Twin"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                d="m10 2 7 4v8l-7 4-7-4V6l7-4Zm0 2.1L5.3 6.8 10 9.5l4.7-2.7L10 4.1Zm-5 4.4v4.4l4 2.3v-4.4L5 8.5Zm6 6.7 4-2.3V8.5l-4 2.3v4.4Z"
+              />
+            </svg>
+            <span>Twin</span>
+          </a>
+          <a
+            class="rail-destination"
+            data-navigation
+            data-workspace="assets"
+            href="#asset-browser"
+            title="Assets"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 4h6l2 2h6v10H3V4Zm2 2v8h10V8h-5L8 6H5Z" />
+            </svg>
+            <span>Assets</span>
+          </a>
+          <a
+            class="rail-destination"
+            data-navigation
+            data-workspace="streams"
+            href="#stream-browser"
+            title="Streams"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M2 9h3.2l1.9-5.1 4.1 11.2L13.3 9H18v2h-3.3l-3.4 10L7 9.1 6.6 11H2V9Z" />
+            </svg>
+            <span>Streams</span>
+          </a>
+          <a
+            class="rail-destination"
+            data-navigation
+            data-workspace="analytics"
+            href="#analytics-workspace"
+            title="Analytics"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M3 16V9h3v7H3Zm5 0V4h3v12H8Zm5 0V7h3v9h-3Z" />
+            </svg>
+            <span>Analytics</span>
+          </a>
+          <a
+            class="rail-destination"
+            data-navigation
+            data-workspace="events"
+            href="#event-browser"
+            title="Events"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                d="M10 2a6 6 0 0 1 6 6v3l2 3H2l2-3V8a6 6 0 0 1 6-6Zm0 16a3 3 0 0 1-2.8-2h5.6a3 3 0 0 1-2.8 2Z"
+              />
+            </svg>
+            <span>Events</span>
+          </a>
+          <a
+            class="rail-destination"
+            data-navigation
+            data-workspace="systems"
+            href="#system-browser"
+            title="Systems"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <path
+                d="m10 2 7 3.8v8.4L10 18l-7-3.8V5.8L10 2Zm0 2.2L5 6.9v6.2l5 2.7 5-2.7V6.9l-5-2.7Zm-3 4h6v1.6H7V8.2Zm0 3h6v1.6H7v-1.6Z"
+              />
+            </svg>
+            <span>Systems</span>
+          </a>
+        </nav>
+
+        <aside class="workspace-browser" aria-label="Workspace context">
+          <section id="twin-browser" data-workspace-panel="twin" tabindex="-1">
+            <section class="browser-group">
+              <header>
+                <h3>Rack context</h3>
+              </header>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Target Physical Rack</dt>
+                  <dd>Not configured</dd>
+                </div>
+                <div>
+                  <dt>Physical Registration</dt>
+                  <dd class="status-value" data-tone="unknown">Unavailable</dd>
+                </div>
+                <div>
+                  <dt>Spatial Anchors</dt>
+                  <dd data-anchor-count>0 registered</dd>
+                </div>
+              </dl>
+            </section>
+            <section class="browser-group measurement-browser-group">
+              <header>
+                <h3>Measurement layers</h3>
+                <span>Active metric</span>
+              </header>
+              <div
+                class="metric-selector"
+                role="radiogroup"
+                aria-label="Spatial measurement metric"
+              >
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="twin-spatial-metric"
+                    value="temperature"
+                    checked
+                  />
+                  <span>Temperature</span
+                  ><small data-twin-summary="temperature">Not observed</small>
+                </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="twin-spatial-metric"
+                    value="humidity"
+                  />
+                  <span>Humidity</span><small data-twin-summary="humidity">Not observed</small>
+                </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="twin-spatial-metric"
+                    value="acoustic"
+                  />
+                  <span>Acoustic</span><small data-twin-summary="acoustic">Not observed</small>
+                </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="twin-spatial-metric"
+                    value="electrical"
+                  />
+                  <span>Electrical</span><small data-twin-summary="electrical">Not observed</small>
+                </label>
+              </div>
+            </section>
+            <section class="browser-group reference-scale-group">
+              <div id="measurement-legend" class="measurement-legend" hidden>
+                <header>
+                  <strong id="legend-metric">Temperature</strong>
+                </header>
+                <section
+                  data-measurement-legend="temperature"
+                  aria-label="Temperature visualization scale, degrees Celsius"
+                >
+                  <div class="measurement-scale">
+                    <div data-legend-gradient aria-hidden="true"></div>
+                  </div>
+                  <div class="legend-ticks" aria-hidden="true">
+                    <span>&lt;18</span><span>18</span><span>22.5</span><span>27</span
+                    ><span>&gt;27°C</span>
+                  </div>
+                </section>
+                <section
+                  data-measurement-legend="humidity"
+                  aria-label="Relative humidity visualization scale, percent RH"
+                  hidden
+                >
+                  <div class="measurement-scale">
+                    <div data-legend-gradient aria-hidden="true"></div>
+                  </div>
+                  <div class="legend-ticks" aria-hidden="true">
+                    <span>0</span><span>25</span><span>50</span><span>75</span><span>100% RH</span>
+                  </div>
+                </section>
+              </div>
+            </section>
+            <section class="browser-group spatial-readiness-group">
+              <header>
+                <h3>Spatial readiness</h3>
+                <span>Evidence chain</span>
+              </header>
+              <div class="readiness-chain" aria-label="Spatial measurement readiness">
+                <p>
+                  <span>Geometry</span
+                  ><strong data-status="geometry" data-tone="unknown">Unavailable</strong>
+                </p>
+                <p><span>Anchor</span><strong data-anchor-count>0 registered</strong></p>
+                <p>
+                  <span>Observation</span><strong data-current-count>0 current measurements</strong>
+                </p>
+                <p><span>Visualization</span><strong data-zone-summary>Unavailable</strong></p>
+              </div>
+            </section>
+            <section class="browser-group registration-group">
+              <header>
+                <h3>Spatial registration</h3>
+                <span>Reference geometry</span>
+              </header>
+              <label for="registration-source">Canonical source</label>
+              <select id="registration-source" disabled>
+                <option value="">No canonical source available</option>
+              </select>
+              <button id="start-registration" type="button" disabled>Select model point</button>
+              <button id="inspect-registration" type="button" disabled>
+                Inspect registered anchor
+              </button>
+              <p id="registration-message" role="status">
+                No canonical sensor source available for registration.
+              </p>
+              <div id="registration-preview" hidden>
+                <dl>
+                  <div>
+                    <dt>X</dt>
+                    <dd data-preview-axis="0">—</dd>
+                  </div>
+                  <div>
+                    <dt>Y</dt>
+                    <dd data-preview-axis="1">—</dd>
+                  </div>
+                  <div>
+                    <dt>Z</dt>
+                    <dd data-preview-axis="2">—</dd>
+                  </div>
+                </dl>
+                <div>
+                  <button id="confirm-registration" type="button">Confirm registration</button>
+                  <button id="cancel-registration" type="button">Cancel</button>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section id="asset-browser" data-workspace-panel="assets" tabindex="-1" hidden>
+            <header class="workspace-browser-header">
+              <p class="panel-kicker">Assets</p>
+              <h2>Hardware condition</h2>
+              <p id="asset-count">Condition evidence</p>
+            </header>
+            <section class="browser-group">
+              <header>
+                <h3>Hardware entities</h3>
+                <span>Reference wiring</span>
+              </header>
+              <div id="asset-list" class="browser-list" aria-live="polite">
+                <p class="identity-row">ESP32-S3 DevKitC-1</p>
+                <p class="identity-row">SHT31 A</p>
+                <p class="identity-row">SHT31 B</p>
+                <p class="identity-row">INMP441</p>
+                <p class="identity-row">Electrical Measurement Point</p>
+              </div>
+            </section>
+            <section class="browser-group">
+              <header>
+                <h3>Observed source state</h3>
+                <span>Current</span>
+              </header>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>SHT31 A</dt>
+                  <dd data-hardware-state="sht31-a">Not observed</dd>
+                </div>
+                <div>
+                  <dt>SHT31 B</dt>
+                  <dd data-hardware-state="sht31-b">Not observed</dd>
+                </div>
+                <div>
+                  <dt>INMP441</dt>
+                  <dd data-hardware-state="inmp441">Not observed</dd>
+                </div>
+                <div>
+                  <dt>Electrical</dt>
+                  <dd data-hardware-state="electrical">Not observed</dd>
+                </div>
+              </dl>
+            </section>
+          </section>
+
+          <section id="stream-browser" data-workspace-panel="streams" tabindex="-1" hidden>
+            <nav class="stream-filters" aria-label="Stream systems">
+              <button type="button" data-stream-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-stream-filter="environment" aria-pressed="false">
+                Environment
+              </button>
+              <button type="button" data-stream-filter="acoustic" aria-pressed="false">
+                Acoustic
+              </button>
+              <button type="button" data-stream-filter="electrical" aria-pressed="false">
+                Electrical
+              </button>
+              <button type="button" data-stream-filter="telecommunications" aria-pressed="false">
+                Telecommunications
+              </button>
+              <button type="button" data-stream-filter="device" aria-pressed="false">Device</button>
+            </nav>
+          </section>
+
+          <section id="analytics-workspace" data-workspace-panel="analytics" tabindex="-1" hidden>
+            <header class="workspace-browser-header">
+              <p class="panel-kicker">Analytics</p>
+              <h2>Historical measurement context</h2>
+              <p id="analytics-browser-state">No historical series available</p>
+            </header>
+            <section class="browser-group">
+              <header>
+                <h3>Query context</h3>
+                <span>Canonical sources</span>
+              </header>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Metric</dt>
+                  <dd id="analytics-browser-metric">Not selected</dd>
+                </div>
+                <div>
+                  <dt>Asset</dt>
+                  <dd data-asset-context>Not configured</dd>
+                </div>
+                <div>
+                  <dt>Sensor / source</dt>
+                  <dd id="analytics-browser-source">Not observed</dd>
+                </div>
+                <div>
+                  <dt>Time range</dt>
+                  <dd id="analytics-browser-range">Unavailable</dd>
+                </div>
+                <div>
+                  <dt>Quality</dt>
+                  <dd>Not observed</dd>
+                </div>
+              </dl>
+            </section>
+          </section>
+
+          <section id="event-browser" data-workspace-panel="events" tabindex="-1" hidden>
+            <header class="workspace-browser-header">
+              <p class="panel-kicker">Events</p>
+              <h2>Operational event browser</h2>
+              <p>Canonical event source unavailable</p>
+            </header>
+            <section class="browser-group">
+              <header>
+                <h3>Source state</h3>
+                <span>Events</span>
+              </header>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Event records</dt>
+                  <dd>None observed</dd>
+                </div>
+                <div>
+                  <dt>Event source</dt>
+                  <dd>Unavailable</dd>
+                </div>
+              </dl>
+            </section>
+          </section>
+
+          <section id="system-browser" data-workspace-panel="systems" tabindex="-1" hidden>
+            <header class="workspace-browser-header">
+              <p class="panel-kicker">Systems</p>
+              <h2>Infrastructure engineering</h2>
+              <p>Core domain classification</p>
+            </header>
+            <nav class="domain-selector" aria-label="Engineering domain">
+              <button type="button" data-system-domain="architecture" aria-pressed="true">
+                <span>Architecture</span><small>Spatial reference</small>
+              </button>
+              <button type="button" data-system-domain="telecommunications" aria-pressed="false">
+                <span>Telecommunications</span><small>Logical transport</small>
+              </button>
+              <button type="button" data-system-domain="electrical" aria-pressed="false">
+                <span>Electrical</span><small>Instrumentation state</small>
+              </button>
+              <button type="button" data-system-domain="mechanical" aria-pressed="false">
+                <span>Mechanical</span><small>Environment</small>
+              </button>
+            </nav>
+            <section class="domain-summary" data-domain-summary="architecture">
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Reference Geometry</dt>
+                  <dd class="status-value" data-status="geometry" data-tone="unknown">
+                    Unavailable
+                  </dd>
+                </div>
+                <div>
+                  <dt>Physical Registration</dt>
+                  <dd>Unavailable</dd>
+                </div>
+                <div>
+                  <dt>Spatial Anchors</dt>
+                  <dd data-anchor-count>0 registered</dd>
+                </div>
+                <div>
+                  <dt>Asset Placement</dt>
+                  <dd>Not configured</dd>
+                </div>
+              </dl>
+            </section>
+            <section class="domain-summary" data-domain-summary="telecommunications" hidden>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Device source</dt>
+                  <dd class="status-value" data-status="device" data-tone="unknown">
+                    Not observed
+                  </dd>
+                </div>
+                <div>
+                  <dt>Live data</dt>
+                  <dd class="status-value" data-status="stream" data-tone="unknown">Disabled</dd>
+                </div>
+                <div>
+                  <dt>Network metrics</dt>
+                  <dd>Not observed</dd>
+                </div>
+              </dl>
+            </section>
+            <section class="domain-summary" data-domain-summary="electrical" hidden>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Topology</dt>
+                  <dd>Not modeled</dd>
+                </div>
+                <div>
+                  <dt>Measurement source</dt>
+                  <dd>Not configured</dd>
+                </div>
+                <div>
+                  <dt>Observed measurements</dt>
+                  <dd>None</dd>
+                </div>
+              </dl>
+            </section>
+            <section class="domain-summary" data-domain-summary="mechanical" hidden>
+              <dl class="browser-status-list">
+                <div>
+                  <dt>Physical Sensor Position</dt>
+                  <dd>Unregistered</dd>
+                </div>
+                <div>
+                  <dt>Spatial Measurement</dt>
+                  <dd>Unavailable</dd>
+                </div>
+                <div>
+                  <dt>Environment</dt>
+                  <dd data-mechanical-count>Not observed</dd>
+                </div>
+              </dl>
+              <div
+                class="metric-selector"
+                role="radiogroup"
+                aria-label="Mechanical measurement metric"
+              >
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="mechanical-spatial-metric"
+                    value="temperature"
+                    checked
+                  />
+                  <span>Temperature</span><small>degC</small>
+                </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="mechanical-spatial-metric"
+                    value="humidity"
+                  />
+                  <span>Humidity</span><small>percent_rh</small>
+                </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="mechanical-spatial-metric"
+                    value="sound_rms_dbfs"
+                  />
+                  <span>RMS</span><small>dBFS diagnostic</small>
+                </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="mechanical-spatial-metric"
+                    value="sound_peak_dbfs"
+                  />
+                  <span>Peak</span><small>dBFS diagnostic</small>
+                </label>
+              </div>
+            </section>
+            <section class="taxonomy-note" aria-label="Classification reference">
+              <span>Reference taxonomy</span><strong>ANSI/TIA-942-C</strong> <span>Conformance</span
+              ><strong>Not assessed</strong>
+            </section>
+          </section>
+        </aside>
+
+        <section class="workspace-main" aria-label="Digital Twin workspace">
+          <div class="workspace-stage">
+            <section
+              id="twin-workspace"
+              class="viewer"
+              data-workspace-surface="spatial"
+              aria-labelledby="geometry-heading"
+              tabindex="-1"
+            >
+              <h2 id="geometry-heading" class="visually-hidden">Rack reference geometry</h2>
+              <canvas
+                id="rack-canvas"
+                data-model-url="/models/rack.glb"
+                aria-label="Interactive rack reference geometry; drag to orbit or pan and scroll to zoom"
+                aria-describedby="viewer-status spatial-layer-message"
+              ></canvas>
+
+              <section class="architecture-domain-panel" data-spatial-overlay="architecture" hidden>
+                <header>
+                  <span>Architecture domain</span>
+                  <strong>Reference-to-physical registration boundary</strong>
+                </header>
+                <div class="domain-path" aria-label="Architecture registration context">
+                  <p>
+                    <span>Reference model</span><strong>rack.glb</strong
+                    ><small>Loaded geometry</small>
+                  </p>
+                  <p>
+                    <span>Physical registration</span><strong>Unavailable</strong
+                    ><small>No surveyed correspondence</small>
+                  </p>
+                  <p>
+                    <span>Asset placement</span><strong>Not configured</strong
+                    ><small>Target rack unresolved</small>
+                  </p>
+                </div>
+              </section>
+
+              <section class="mechanical-domain-panel" data-spatial-overlay="mechanical" hidden>
+                <header>
+                  <span>Mechanical domain</span>
+                  <strong>Environmental representation</strong>
+                </header>
+                <div class="mechanical-state-summary">
+                  <p>
+                    <span>Environment</span><strong data-mechanical-count>Not observed</strong
+                    ><small>Temperature / Humidity</small>
+                  </p>
+                  <p>
+                    <span>Acoustic diagnostics</span><strong>Not observed</strong
+                    ><small>RMS / Peak dBFS</small>
+                  </p>
+                  <p>
+                    <span>Spatial dependency</span><strong>Unavailable</strong
+                    ><small>Requires anchor + observation</small>
+                  </p>
+                </div>
+                <section class="environmental-reference" aria-label="Environmental reference">
+                  <p>
+                    <span>Temperature</span><strong>18–27°C recommended</strong
+                    ><small>Equipment-inlet envelope</small>
+                  </p>
+                  <p>
+                    <span>Humidity</span><strong>%RH visualization</strong
+                    ><small>Moisture assessment requires dew-point context</small>
+                  </p>
+                  <p>
+                    <span>Reference standard</span><strong>ASHRAE TC 9.9</strong
+                    ><small>ANSI/TIA-942-C aligned thermal guidance</small>
+                  </p>
+                  <p>
+                    <span>Conformance</span><strong>Not assessed</strong
+                    ><small>Anchor location role: Unclassified</small>
+                  </p>
+                </section>
+                <section class="mechanical-history" aria-label="Mechanical history">
+                  <article data-history-metric="temperature">
+                    <h3>Temperature</h3>
+                    <div class="history-chart"></div>
+                  </article>
+                  <article data-history-metric="humidity">
+                    <h3>Humidity</h3>
+                    <div class="history-chart"></div>
+                  </article>
+                  <article data-history-metric="sound_rms_dbfs">
+                    <h3>RMS dBFS</h3>
+                    <div class="history-chart"></div>
+                  </article>
+                  <article data-history-metric="sound_peak_dbfs">
+                    <h3>Peak dBFS</h3>
+                    <div class="history-chart"></div>
+                  </article>
+                </section>
+              </section>
+
+              <div class="viewport-tools" aria-label="Viewport tools">
+                <button
+                  id="surface-mode"
+                  type="button"
+                  class="surface-mode-toggle"
+                  title="Contrast surface"
+                  aria-label="Surface mode"
+                  aria-pressed="false"
+                >
+                  <span class="surface-mode-track" aria-hidden="true">
+                    <span class="surface-mode-texture"></span>
+                    <span class="surface-mode-thumb"></span>
+                    <span class="surface-mode-contrast"></span>
+                  </span>
+                  <span>Surface</span>
+                </button>
+                <details class="layer-control">
+                  <summary>Layers</summary>
+                  <div class="layer-menu">
+                    <label>
+                      <input type="checkbox" data-layer="geometry" checked />
+                      <span>Geometry</span>
+                    </label>
+                    <label>
+                      <input type="checkbox" data-layer="anchors" checked />
+                      <span>Sensors</span>
+                    </label>
+                    <label>
+                      <input type="checkbox" data-layer="zones" checked />
+                      <span>Zones</span><small id="measurement-zone-state" hidden></small>
+                    </label>
+                  </div>
+                </details>
+              </div>
+
+              <section class="spatial-layer-state" aria-live="polite">
+                <span id="spatial-layer-metric">Measurement context</span>
+                <strong id="spatial-layer-state">Spatial measurement unavailable</strong>
+                <p id="spatial-layer-message">
+                  Register a physical sensor position to enable this layer.
+                </p>
+              </section>
+
+              <p id="viewer-status" class="viewer-status" aria-live="polite"></p>
+            </section>
+
+            <aside
+              id="measurement-inspector"
+              class="context-inspector"
+              aria-labelledby="inspector-title"
+              data-empty="true"
+              hidden
+            >
+              <header class="inspector-header">
+                <div>
+                  <p id="inspector-kicker">Workspace context</p>
+                  <h2 id="inspector-title">Spatial context</h2>
+                </div>
+                <button
+                  id="clear-selection"
+                  type="button"
+                  aria-label="Close context inspector"
+                  hidden
+                >
+                  <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <path
+                      d="m5.7 4.3 4.3 4.3 4.3-4.3 1.4 1.4-4.3 4.3 4.3 4.3-1.4 1.4-4.3-4.3-4.3 4.3-1.4-1.4L8.6 10 4.3 5.7l1.4-1.4Z"
+                    />
+                  </svg>
+                </button>
+              </header>
+              <section id="inspector-empty" class="inspector-empty-state">
+                <span aria-hidden="true"></span>
+                <strong>No object selected</strong>
+                <p>
+                  Select an observed stream or a registered sensor anchor to inspect canonical
+                  state.
+                </p>
+                <dl>
+                  <div>
+                    <dt>Physical registration</dt>
+                    <dd>Unavailable</dd>
+                  </div>
+                  <div>
+                    <dt>Spatial anchors</dt>
+                    <dd data-anchor-count>0 registered</dd>
+                  </div>
+                  <div>
+                    <dt>Observed measurements</dt>
+                    <dd data-current-count>0</dd>
+                  </div>
+                </dl>
+              </section>
+              <div id="inspector-detail" hidden>
+                <p class="inspector-reading" aria-live="polite">
+                  <span id="inspector-swatch" class="inspector-swatch" hidden></span>
+                  <strong id="inspector-value">—</strong><span id="inspector-unit"></span>
+                </p>
+                <dl class="inspector-properties">
+                  <div>
+                    <dt>Sensor</dt>
+                    <dd id="inspector-sensor"></dd>
+                  </div>
+                  <div>
+                    <dt>Quality</dt>
+                    <dd id="inspector-quality" class="status-value"></dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt>
+                    <dd id="inspector-acquired"></dd>
+                  </div>
+                  <div id="inspector-raw-row" hidden>
+                    <dt>Raw</dt>
+                    <dd id="inspector-raw"></dd>
+                  </div>
+                  <div>
+                    <dt>Location</dt>
+                    <dd id="inspector-registration">Unregistered</dd>
+                  </div>
+                </dl>
+                <details class="inspector-technical">
+                  <summary>Details</summary>
+                  <dl class="inspector-properties">
+                    <div>
+                      <dt>Metric</dt>
+                      <dd id="inspector-metric"></dd>
+                    </div>
+                    <div>
+                      <dt>Asset</dt>
+                      <dd id="inspector-asset"></dd>
+                    </div>
+                    <div>
+                      <dt>Source state</dt>
+                      <dd id="inspector-source" class="status-value"></dd>
+                    </div>
+                    <div>
+                      <dt>Received</dt>
+                      <dd id="inspector-received"></dd>
+                    </div>
+                    <div id="inspector-coordinate-row" hidden>
+                      <dt>Coordinate system</dt>
+                      <dd id="inspector-coordinate"></dd>
+                    </div>
+                    <div id="inspector-position-row" hidden>
+                      <dt>Model-local position</dt>
+                      <dd id="inspector-position"></dd>
+                    </div>
+                  </dl>
+                </details>
+              </div>
+            </aside>
+
+            <section class="registry-workspace" data-workspace-surface="assets" hidden>
+              <div class="hardware-layout" data-hardware-topology>
+                <section
+                  class="hardware-topology"
+                  aria-label="Live hardware condition schematic"
+                  data-selected-hardware=""
+                >
+                  <section class="hardware-scope" aria-label="Selected hardware system scope">
+                    <header>
+                      <strong>System scope</strong
+                      ><span data-scope-source>Select a component or signal</span>
+                      <nav aria-label="Scope time range">
+                        <button type="button" data-scope-range="live" aria-pressed="true">
+                          Live
+                        </button>
+                        <button type="button" data-scope-range="1h" aria-pressed="false">1h</button>
+                        <button type="button" data-scope-range="24h" aria-pressed="false">
+                          24h
+                        </button>
+                        <button type="button" data-scope-range="5d" aria-pressed="false">5d</button>
+                      </nav>
+                    </header>
+                    <div class="hardware-scope-traces" data-scope-traces>
+                      <p>Select a hardware component to probe canonical history.</p>
+                    </div>
+                  </section>
+                  <div class="condition-strip" aria-label="Hardware condition summary">
+                    <button type="button" data-hardware-node="esp32-s3">
+                      ESP32 <span data-condition="esp32-s3">Unknown</span>
+                    </button>
+                    <button type="button" data-hardware-node="sht31-a">
+                      SHT31 A <span data-condition="sht31-a">Unknown</span>
+                    </button>
+                    <button type="button" data-hardware-node="sht31-b">
+                      SHT31 B <span data-condition="sht31-b">Unknown</span>
+                    </button>
+                    <button type="button" data-hardware-node="inmp441">
+                      INMP441 <span data-condition="inmp441">Unknown</span>
+                    </button>
+                    <button type="button" data-hardware-node="electrical">
+                      Electrical <span data-condition="electrical">Unknown</span>
+                    </button>
+                  </div>
+                  <svg
+                    class="hardware-schematic"
+                    viewBox="0 0 1000 560"
+                    role="group"
+                    aria-label="Configured hardware and live measurement flow"
+                  >
+                    <defs>
+                      <pattern
+                        id="schematic-grid"
+                        width="24"
+                        height="24"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <path d="M24 0H0V24" />
+                      </pattern>
+                    </defs>
+                    <rect width="1000" height="560" fill="url(#schematic-grid)" />
+                    <g class="schematic-rails" aria-hidden="true">
+                      <path class="trace trace-power" data-trace="power-3v3" d="M120 100H900" />
+                      <path
+                        class="trace trace-power"
+                        d="M215 100V135m285-35v90m295-90v45M140 100v255h20"
+                      />
+                      <path class="trace trace-ground" data-trace="power-gnd" d="M120 490H900" />
+                      <path class="trace trace-ground" d="M215 425v65m285-110v110m355-245h25v245" />
+                      <text x="124" y="88">3V3</text>
+                      <text x="124" y="514">GND</text>
+                    </g>
+                    <g class="schematic-buses" aria-hidden="true">
+                      <path class="trace trace-signal" data-trace="i2c0" d="M270 185V240H430" />
+                      <path class="trace trace-signal" data-trace="i2c1" d="M270 375V300H430" />
+                      <path class="trace trace-signal" data-trace="i2s0" d="M735 195V270H570" />
+                      <path class="trace trace-logical" data-trace="transport" d="M570 330H735" />
+                      <path
+                        class="trace trace-electrical"
+                        data-trace="electrical"
+                        d="M735 385H680"
+                      />
+                      <text x="318" y="225">I²C0</text>
+                      <text x="318" y="320">I²C1</text>
+                      <text x="640" y="250">I²S0</text>
+                      <text x="625" y="318">Wi-Fi / MQTT</text>
+                      <text x="590" y="407">Rack observation</text>
+                    </g>
+                    <g
+                      class="schematic-node"
+                      role="button"
+                      tabindex="0"
+                      data-hardware-node="esp32-s3"
+                    >
+                      <path class="board-edge" d="M436 196h140v190H436z" />
+                      <rect class="board-pcb" x="430" y="190" width="140" height="190" rx="5" />
+                      <rect class="board-shield" x="453" y="216" width="94" height="95" rx="2" />
+                      <rect class="symbol-chip" x="465" y="240" width="70" height="48" rx="2" />
+                      <path
+                        class="pin-header"
+                        d="M440 206v158m120-158v158M432 210h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m112-128h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16"
+                      />
+                      <path class="usb-shell" d="M478 190v-13h44v13m-40-5h36" />
+                      <circle class="board-hole" cx="448" cy="202" r="3" />
+                      <circle class="board-hole" cx="552" cy="368" r="3" />
+                      <text x="500" y="265" text-anchor="middle">ESP32-S3</text>
+                      <text class="symbol-caption" x="500" y="343" text-anchor="middle">
+                        N16R8 · USB
+                      </text>
+                    </g>
+                    <g
+                      class="schematic-node"
+                      role="button"
+                      tabindex="0"
+                      data-hardware-node="sht31-a"
+                    >
+                      <path class="board-edge" d="M165 140h110v100H165z" />
+                      <rect class="board-pcb" x="160" y="135" width="110" height="100" rx="5" />
+                      <circle class="board-hole" cx="174" cy="149" r="4" />
+                      <circle class="board-hole" cx="256" cy="149" r="4" />
+                      <rect class="sensor-package" x="195" y="161" width="40" height="33" rx="2" />
+                      <path class="sensor-vent" d="M203 170h24m-24 6h24m-24 6h24" />
+                      <path
+                        class="pin-header"
+                        d="M176 203h78m-68-5v10m14-10v10m14-10v10m14-10v10m14-10v10m12-10v10"
+                      />
+                      <text x="215" y="216" text-anchor="middle">SHT31 A</text>
+                    </g>
+                    <g
+                      class="schematic-node"
+                      role="button"
+                      tabindex="0"
+                      data-hardware-node="sht31-b"
+                    >
+                      <path class="board-edge" d="M165 330h110v100H165z" />
+                      <rect class="board-pcb" x="160" y="325" width="110" height="100" rx="5" />
+                      <circle class="board-hole" cx="174" cy="339" r="4" />
+                      <circle class="board-hole" cx="256" cy="339" r="4" />
+                      <rect class="sensor-package" x="195" y="351" width="40" height="33" rx="2" />
+                      <path class="sensor-vent" d="M203 360h24m-24 6h24m-24 6h24" />
+                      <path
+                        class="pin-header"
+                        d="M176 393h78m-68-5v10m14-10v10m14-10v10m14-10v10m14-10v10m12-10v10"
+                      />
+                      <text x="215" y="406" text-anchor="middle">SHT31 B</text>
+                    </g>
+                    <g
+                      class="schematic-node"
+                      role="button"
+                      tabindex="0"
+                      data-hardware-node="inmp441"
+                    >
+                      <path class="board-edge" d="M740 150h120v100H740z" />
+                      <rect class="board-pcb" x="735" y="145" width="120" height="100" rx="5" />
+                      <rect class="mic-can" x="771" y="156" width="48" height="48" rx="4" />
+                      <circle class="symbol-port" cx="795" cy="180" r="11" />
+                      <path
+                        class="pin-header"
+                        d="M748 217h94m-84-5v10m16-10v10m16-10v10m16-10v10m16-10v10m16-10v10"
+                      />
+                      <text x="795" y="224" text-anchor="middle">INMP441</text>
+                    </g>
+                    <g
+                      class="schematic-node"
+                      role="button"
+                      tabindex="0"
+                      data-hardware-node="electrical"
+                    >
+                      <circle class="meter-ring" cx="795" cy="385" r="55" />
+                      <path
+                        class="meter-probe"
+                        d="M753 385h20l10-22 18 44 12-22h22m-40-47v-15m-20 61h-15"
+                      />
+                      <text class="meter-unit" x="795" y="354" text-anchor="middle">V · A · W</text>
+                      <text x="795" y="468" text-anchor="middle">Electrical point</text>
+                    </g>
+                    <g class="live-values" aria-live="polite">
+                      <text x="285" y="175" data-hardware-value="sht31-a">Not observed</text>
+                      <text x="285" y="365" data-hardware-value="sht31-b">Not observed</text>
+                      <text x="700" y="138" data-hardware-value="inmp441">Not observed</text>
+                      <text x="700" y="455" data-hardware-value="electrical">Not observed</text>
+                      <text x="700" y="471" data-hardware-secondary="electrical">Not observed</text>
+                      <text x="500" y="408" text-anchor="middle" data-hardware-value="esp32-s3">
+                        Not observed
+                      </text>
+                      <text x="285" y="191" data-hardware-power="sht31-a">Not instrumented</text>
+                      <text x="285" y="381" data-hardware-power="sht31-b">Not instrumented</text>
+                      <text x="700" y="256" data-hardware-power="inmp441">Not instrumented</text>
+                      <text x="500" y="425" text-anchor="middle" data-hardware-power="esp32-s3">
+                        Not instrumented
+                      </text>
+                    </g>
+                  </svg>
+                  <div class="hardware-legend" aria-label="Schematic legend">
+                    <span><i data-kind="power"></i>Power reference</span>
+                    <span><i data-kind="data"></i>Active data</span>
+                    <span><i data-kind="logical"></i>Logical</span>
+                  </div>
+                </section>
+
+                <aside id="hardware-detail" class="hardware-detail" hidden>
+                  <header>
+                    <p class="panel-kicker">Selected component</p>
+                    <h3 data-hardware-title></h3>
+                    <span data-hardware-state-label>Insufficient evidence</span>
+                  </header>
+                  <section class="condition-decision">
+                    <p><span>Condition</span><strong data-hardware-condition>Unknown</strong></p>
+                    <p>
+                      <span>Action</span
+                      ><strong data-hardware-decision>Validate against reference</strong>
+                    </p>
+                  </section>
+                  <section class="current-diagnostics">
+                    <h4>Current diagnostics</h4>
+                    <dl data-hardware-diagnostics></dl>
+                  </section>
+                  <section class="hardware-specification">
+                    <h4>Manufacturer reference</h4>
+                    <dl class="hardware-facts" data-hardware-facts></dl>
+                  </section>
+                  <section class="hardware-wiring">
+                    <h4>Wiring</h4>
+                    <table class="pin-matrix">
+                      <thead>
+                        <tr>
+                          <th>Pin</th>
+                          <th>Connected to</th>
+                          <th>Role</th>
+                        </tr>
+                      </thead>
+                      <tbody data-pin-matrix></tbody>
+                    </table>
+                  </section>
+                </aside>
+              </div>
+            </section>
+
+            <section class="registry-workspace" data-workspace-surface="streams" hidden>
+              <div class="registry-table" role="table" aria-label="Canonical measurement sources">
+                <div class="registry-table-head" role="row">
+                  <span role="columnheader">System</span><span role="columnheader">Metric</span>
+                  <span role="columnheader">Latest value</span>
+                  <span role="columnheader">Source time</span
+                  ><span role="columnheader">Spatial state</span>
+                </div>
+                <div id="stream-registry-body" class="registry-table-body" role="rowgroup">
+                  <div class="registry-empty">
+                    <strong>No canonical records observed</strong>
+                    <p>Sources remain Not observed, not zero.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="analytics-workspace-surface" data-workspace-surface="analytics" hidden>
+              <header class="surface-header">
+                <div>
+                  <p class="panel-kicker">Analytics</p>
+                  <h2>Historical measurement analysis</h2>
+                </div>
+                <span id="analytics-history-state">Select a metric</span>
+              </header>
+              <form
+                id="history-query"
+                class="analysis-context"
+                aria-label="Analytics query context"
+              >
+                <label>
+                  <span>Metric</span>
+                  <select id="history-metric" aria-label="Historical metric">
+                    <option value="">Select metric</option>
+                  </select>
+                </label>
+                <p><span>Asset</span><strong data-asset-context>Not configured</strong></p>
+                <label>
+                  <span>Sensor / source</span>
+                  <select id="history-source" aria-label="Historical source">
+                    <option value="">All matching sources</option>
+                  </select>
+                </label>
+                <fieldset class="history-range" aria-label="Historical time range">
+                  <legend>Time range</legend>
+                  <button type="button" data-history-range="1h">1h</button>
+                  <button type="button" data-history-range="6h">6h</button>
+                  <button type="button" data-history-range="24h">24h</button>
+                  <button type="button" data-history-range="5d" aria-pressed="true">5d</button>
+                </fieldset>
+                <p><span>Aggregation</span><strong>Average · Min · Max</strong></p>
+              </form>
+              <section class="chart-workspace" aria-labelledby="analysis-chart-heading">
+                <header>
+                  <h3 id="analysis-chart-heading">Measurement history</h3>
+                  <span>Canonical series</span>
+                </header>
+                <div id="analytics-history-chart" class="chart-frame history-chart">
+                  <div class="chart-empty">
+                    <strong>Select a canonical metric</strong>
+                    <p>
+                      History is queried from PostgreSQL; no values are generated in the browser.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <section class="registry-workspace" data-workspace-surface="events" hidden>
+              <header class="surface-header">
+                <div>
+                  <p class="panel-kicker">Events</p>
+                  <h2>Operational event browser</h2>
+                </div>
+                <span>Canonical source unavailable</span>
+              </header>
+              <section class="surface-summary" aria-label="Event source summary">
+                <p><span>Observed records</span><strong>0</strong></p>
+                <p><span>Canonical source</span><strong>Unavailable</strong></p>
+                <p><span>Synthetic derivation</span><strong>Disabled</strong></p>
+              </section>
+              <div class="event-table" role="table" aria-label="Operational events">
+                <div class="event-table-head" role="row">
+                  <span role="columnheader">Timestamp</span><span role="columnheader">State</span>
+                  <span role="columnheader">Source</span><span role="columnheader">Asset</span>
+                  <span role="columnheader">Event</span><span role="columnheader">Status</span>
+                </div>
+                <div class="event-empty">
+                  <strong>No canonical operational events observed</strong>
+                  <p>
+                    Current measurements and connection state are not converted into synthetic
+                    events.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section
+              class="engineering-workspace topology-workspace"
+              data-system-surface="telecommunications"
+              hidden
+            >
+              <header class="surface-header">
+                <div>
+                  <p class="panel-kicker">Telecommunications</p>
+                  <h2>Configured logical data path</h2>
+                </div>
+                <span>Observed state remains independent</span>
+              </header>
+              <div class="topology-flow" aria-label="Configured telecommunications topology">
+                <article>
+                  <span>Acquisition</span><strong>SHT31 / INMP441</strong
+                  ><small>Configured sources</small>
+                </article>
+                <article>
+                  <span>Edge device</span><strong>ESP32-S3</strong><small>Acquisition owner</small>
+                </article>
+                <article>
+                  <span>Transport</span><strong>Wi-Fi</strong><small>Configured boundary</small>
+                </article>
+                <article class="topology-unknown">
+                  <span>Infrastructure</span><strong>Network Infrastructure</strong
+                  ><small>Not modeled</small>
+                </article>
+                <article>
+                  <span>Messaging</span><strong>MQTT / Mosquitto</strong
+                  ><small>Canonical transport</small>
+                </article>
+                <article>
+                  <span>Application</span><strong>Node backend</strong
+                  ><small>Validation and projection</small>
+                </article>
+                <article>
+                  <span>Persistence</span><strong>PostgreSQL</strong
+                  ><small>History and current state</small>
+                </article>
+                <article>
+                  <span>Delivery</span><strong>SSE / Frontend</strong
+                  ><small>Physical → Virtual</small>
+                </article>
+              </div>
+              <section class="observed-strip" aria-label="Observed telecommunications state">
+                <p>
+                  <span>Device observed</span
+                  ><strong class="status-value" data-status="device" data-tone="unknown">No</strong>
+                </p>
+                <p>
+                  <span>Connection state</span
+                  ><strong class="status-value" data-status="stream" data-tone="unknown"
+                    >Not observed</strong
+                  >
+                </p>
+                <p><span>Network metrics</span><strong>Not observed</strong></p>
+              </section>
+              <section class="domain-history" aria-label="Telecommunications history">
+                <article data-history-metric="net_receive_throughput_bytes_per_second">
+                  <h3>Rx throughput</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="net_transmit_throughput_bytes_per_second">
+                  <h3>Tx throughput</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="net_link_utilization_ratio">
+                  <h3>Link utilization</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="net_packets_received_errors_total">
+                  <h3>Rx errors</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="net_packets_outbound_errors_total">
+                  <h3>Tx errors</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="net_packets_received_discarded_total">
+                  <h3>Rx drops</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="net_packets_outbound_discarded_total">
+                  <h3>Tx drops</h3>
+                  <div class="history-chart"></div>
+                </article>
+              </section>
+            </section>
+
+            <section
+              class="engineering-workspace electrical-workspace"
+              data-system-surface="electrical"
+              hidden
+            >
+              <header class="surface-header">
+                <div>
+                  <p class="panel-kicker">Electrical</p>
+                  <h2>Electrical model and instrumentation boundary</h2>
+                </div>
+                <span>Observed measurements · None</span>
+              </header>
+              <div class="electrical-schematic" aria-label="Electrical instrumentation state">
+                <span class="schematic-caption">Known system boundary</span>
+                <article>
+                  <span>System context</span><strong>Rack power</strong
+                  ><small>Topology not modeled</small>
+                </article>
+                <div class="schematic-link" aria-hidden="true"></div>
+                <article class="instrumentation-unavailable">
+                  <span>Measurement boundary</span><strong>Measurement source unavailable</strong
+                  ><small>Not configured</small>
+                </article>
+              </div>
+              <dl class="domain-facts">
+                <div>
+                  <dt>Electrical topology</dt>
+                  <dd>Not modeled</dd>
+                </div>
+                <div>
+                  <dt>Measurement source</dt>
+                  <dd>Not configured</dd>
+                </div>
+                <div>
+                  <dt>Observed measurements</dt>
+                  <dd>None</dd>
+                </div>
+                <div>
+                  <dt>Power instrumentation</dt>
+                  <dd>Unavailable</dd>
+                </div>
+              </dl>
+              <section class="domain-history" aria-label="Electrical history">
+                <article data-history-metric="voltage_v">
+                  <h3>Voltage</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="current_a">
+                  <h3>Current</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="active_power_w">
+                  <h3>Active power</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="power_factor_ratio">
+                  <h3>Power factor</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="frequency_hz">
+                  <h3>Frequency</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="energy_wh_total">
+                  <h3>Cumulative energy</h3>
+                  <div class="history-chart"></div>
+                </article>
+              </section>
+            </section>
+          </div>
+
+          <section
+            id="context-analytics"
+            class="analytics-dock"
+            aria-labelledby="analytics-heading"
+            hidden
+          >
+            <header class="analytics-header">
+              <div>
+                <h2 id="analytics-heading">Measurement context</h2>
+                <strong id="analytics-context">No measurement selected</strong>
+              </div>
+              <span>No historical series available</span>
+            </header>
+            <div class="analytics-grid">
+              <article data-metric="temperature">
+                <h3>Temperature</h3>
+                <p>No historical series available</p>
+              </article>
+              <article data-metric="humidity">
+                <h3>Humidity</h3>
+                <p>No historical series available</p>
+              </article>
+              <article data-metric="sound_rms_dbfs">
+                <h3>RMS dBFS</h3>
+                <p>No historical series available</p>
+              </article>
+              <article data-metric="sound_peak_dbfs">
+                <h3>Peak dBFS</h3>
+                <p>No historical series available</p>
+              </article>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

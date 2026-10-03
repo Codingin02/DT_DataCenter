@@ -167,14 +167,53 @@ CREATE TABLE digital_twin.devices (
 CREATE TABLE digital_twin.metric_definitions (
     metric digital_twin.canonical_id PRIMARY KEY,
     unit digital_twin.unit_code NOT NULL,
-    source_class text NOT NULL CHECK (source_class IN ('environmental', 'native_server')),
+    source_class text NOT NULL CHECK (
+        source_class IN (
+            'environmental',
+            'acoustic',
+            'telecommunications',
+            'electrical',
+            'native_server',
+            'hardware'
+        )
+    ),
     UNIQUE (metric, unit)
 );
 
 INSERT INTO digital_twin.metric_definitions (metric, unit, source_class)
 VALUES
     ('temperature', 'degC', 'environmental'),
-    ('humidity', 'percent_rh', 'environmental');
+    ('humidity', 'percent_rh', 'environmental'),
+    ('sound_rms_dbfs', 'dBFS', 'acoustic'),
+    ('sound_peak_dbfs', 'dBFS', 'acoustic'),
+    ('net_bytes_received_total', 'bytes', 'telecommunications'),
+    ('net_bytes_sent_total', 'bytes', 'telecommunications'),
+    ('net_packets_received_total', 'count', 'telecommunications'),
+    ('net_packets_sent_total', 'count', 'telecommunications'),
+    ('net_packets_received_errors_total', 'count', 'telecommunications'),
+    ('net_packets_outbound_errors_total', 'count', 'telecommunications'),
+    ('net_packets_received_discarded_total', 'count', 'telecommunications'),
+    ('net_packets_outbound_discarded_total', 'count', 'telecommunications'),
+    ('net_current_bandwidth_bytes', 'bytes_per_second', 'telecommunications'),
+    (
+        'net_receive_throughput_bytes_per_second',
+        'bytes_per_second',
+        'telecommunications'
+    ),
+    (
+        'net_transmit_throughput_bytes_per_second',
+        'bytes_per_second',
+        'telecommunications'
+    ),
+    ('net_link_utilization_ratio', 'ratio', 'telecommunications'),
+    ('net_operation_status', 'ratio', 'telecommunications'),
+    ('voltage_v', 'V', 'electrical'),
+    ('current_a', 'A', 'electrical'),
+    ('active_power_w', 'W', 'electrical'),
+    ('apparent_power_va', 'VA', 'electrical'),
+    ('power_factor_ratio', 'ratio', 'electrical'),
+    ('frequency_hz', 'Hz', 'electrical'),
+    ('energy_wh_total', 'Wh', 'electrical');
 
 CREATE TABLE digital_twin.sensors (
     sensor_id digital_twin.canonical_id PRIMARY KEY,
@@ -248,6 +287,7 @@ CREATE TABLE digital_twin.measurements (
     asset_id digital_twin.canonical_id NOT NULL,
     metric digital_twin.canonical_id NOT NULL,
     value digital_twin.finite_number NOT NULL,
+    raw_value integer CHECK (raw_value BETWEEN 0 AND 65535),
     unit digital_twin.unit_code NOT NULL,
     ts timestamptz NOT NULL,
     received_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -255,7 +295,7 @@ CREATE TABLE digital_twin.measurements (
     CONSTRAINT measurements_qos1_identity_key
         UNIQUE (device_id, boot_id, seq, sensor_id, metric),
     CONSTRAINT measurements_current_state_reference_key
-        UNIQUE (measurement_id, asset_id, metric, ts, received_at),
+        UNIQUE (measurement_id, asset_id, sensor_id, metric, ts, received_at),
     FOREIGN KEY (site_id, device_id, sensor_id, asset_id, metric, unit)
         REFERENCES digital_twin.sensors (
             site_id,
@@ -267,14 +307,19 @@ CREATE TABLE digital_twin.measurements (
         )
 );
 
-CREATE INDEX measurements_asset_metric_time
+CREATE INDEX measurements_source_time
     ON digital_twin.measurements (
         asset_id,
+        sensor_id,
         metric,
         ts DESC,
         received_at DESC,
         measurement_id DESC
     );
+
+CREATE INDEX measurements_history_lookup
+    ON digital_twin.measurements (asset_id, metric, sensor_id, ts)
+    INCLUDE (value, unit);
 
 CREATE TABLE digital_twin.ingestion_events (
     ingestion_event_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -299,6 +344,7 @@ CREATE SEQUENCE digital_twin.current_state_version_seq AS bigint;
 
 CREATE TABLE digital_twin.current_state_projection (
     asset_id digital_twin.canonical_id NOT NULL,
+    sensor_id digital_twin.canonical_id NOT NULL,
     metric digital_twin.canonical_id NOT NULL,
     measurement_id bigint NOT NULL UNIQUE,
     source_ts timestamptz NOT NULL,
@@ -306,12 +352,20 @@ CREATE TABLE digital_twin.current_state_projection (
     source_status digital_twin.source_status NOT NULL DEFAULT 'unknown',
     state_version bigint NOT NULL DEFAULT nextval('digital_twin.current_state_version_seq'),
     updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-    PRIMARY KEY (asset_id, metric),
+    PRIMARY KEY (asset_id, sensor_id, metric),
     UNIQUE (state_version),
-    FOREIGN KEY (measurement_id, asset_id, metric, source_ts, measurement_received_at)
+    FOREIGN KEY (
+        measurement_id,
+        asset_id,
+        sensor_id,
+        metric,
+        source_ts,
+        measurement_received_at
+    )
         REFERENCES digital_twin.measurements (
             measurement_id,
             asset_id,
+            sensor_id,
             metric,
             ts,
             received_at
@@ -495,7 +549,8 @@ CREATE FUNCTION digital_twin.accept_measurement(
     p_value digital_twin.finite_number,
     p_unit digital_twin.unit_code,
     p_ts timestamptz,
-    p_quality digital_twin.telemetry_quality
+    p_quality digital_twin.telemetry_quality,
+    p_raw_value integer DEFAULT NULL
 )
 RETURNS TABLE (
     outcome text,
@@ -550,12 +605,30 @@ BEGIN
         RETURN;
     END IF;
 
+    IF p_raw_value IS NOT NULL
+        AND p_metric NOT IN ('temperature', 'humidity') THEN
+        PERFORM digital_twin.record_ingestion_rejection(
+            p_topic,
+            NULL,
+            'unsupported-raw-value',
+            NULL
+        );
+        RETURN QUERY SELECT 'rejected'::text, NULL::bigint, NULL::bigint;
+        RETURN;
+    END IF;
+
     IF NOT EXISTS (
         SELECT 1
         FROM digital_twin.metric_definitions AS md
         WHERE md.metric = p_metric
           AND md.unit = p_unit
-          AND md.source_class = 'environmental'
+          AND md.source_class IN (
+              'environmental',
+              'acoustic',
+              'telecommunications',
+              'electrical',
+              'hardware'
+          )
     ) THEN
         PERFORM digital_twin.record_ingestion_rejection(
             p_topic,
@@ -605,6 +678,7 @@ BEGIN
         asset_id,
         metric,
         value,
+        raw_value,
         unit,
         ts,
         received_at,
@@ -620,6 +694,7 @@ BEGIN
         p_asset_id,
         p_metric,
         p_value,
+        p_raw_value,
         p_unit,
         p_ts,
         v_received_at,
@@ -643,6 +718,7 @@ BEGIN
             v_existing.site_id,
             v_existing.asset_id,
             v_existing.value,
+            v_existing.raw_value,
             v_existing.unit,
             v_existing.ts,
             v_existing.quality
@@ -651,6 +727,7 @@ BEGIN
             p_site_id,
             p_asset_id,
             p_value,
+            p_raw_value,
             p_unit,
             p_ts,
             p_quality
@@ -676,6 +753,7 @@ BEGIN
             INTO v_state_version
             FROM digital_twin.current_state_projection AS cs
             WHERE cs.asset_id = v_existing.asset_id
+              AND cs.sensor_id = v_existing.sensor_id
               AND cs.metric = v_existing.metric;
 
             RETURN QUERY
@@ -702,6 +780,7 @@ BEGIN
         INTO v_state_version
         FROM digital_twin.current_state_projection AS cs
         WHERE cs.asset_id = v_existing.asset_id
+          AND cs.sensor_id = v_existing.sensor_id
           AND cs.metric = v_existing.metric;
 
         RETURN QUERY
@@ -711,6 +790,7 @@ BEGIN
 
     INSERT INTO digital_twin.current_state_projection AS existing_state (
         asset_id,
+        sensor_id,
         metric,
         measurement_id,
         source_ts,
@@ -719,13 +799,14 @@ BEGIN
     )
     VALUES (
         p_asset_id,
+        p_sensor_id,
         p_metric,
         v_measurement_id,
         p_ts,
         v_received_at,
         'unknown'
     )
-    ON CONFLICT (asset_id, metric) DO UPDATE
+    ON CONFLICT (asset_id, sensor_id, metric) DO UPDATE
     SET
         measurement_id = EXCLUDED.measurement_id,
         source_ts = EXCLUDED.source_ts,
@@ -745,6 +826,7 @@ BEGIN
     INTO v_state_version
     FROM digital_twin.current_state_projection AS cs
     WHERE cs.asset_id = p_asset_id
+      AND cs.sensor_id = p_sensor_id
       AND cs.metric = p_metric;
 
     INSERT INTO digital_twin.ingestion_events (
@@ -766,6 +848,7 @@ SELECT
     cs.asset_id,
     m.metric,
     m.value,
+    m.raw_value,
     m.unit,
     m.site_id,
     m.device_id,

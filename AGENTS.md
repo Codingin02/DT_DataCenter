@@ -4,7 +4,11 @@ Project: Digital Twin Data Center Laboratorium Kampus
 Identifier: DT_DataCenter
 Project root: E:\Projects\Digital_Twin
 Owner/admin identifier: bagus
-Primary MCU: ESP32-S3
+Active maturity: R1 Representation only
+Out of current scope: R2, R3, R4
+Physical scope: one rack in the lower rack/server environment
+Measurement and communication MCU: ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
+Environmental sensors: 2x DFRobot Fermion SHT31 SEN0331 and INMP441
 
 ## Execution
 
@@ -22,23 +26,13 @@ When an error occurs, identify the root cause and continue until the problem is 
 
 Do not repeatedly validate unchanged working components.
 
-Normal implementation checkpoints occur after steps 5, 10, 15, 20, and so on.
-
 A real error may be investigated immediately.
 
 ## Development Priority
 
 Functional correctness comes before presentation.
 
-Development order:
-1. system architecture and contracts;
-2. firmware and device communication;
-3. MQTT data flow;
-4. backend;
-5. database;
-6. observability;
-7. integration;
-8. frontend and 3D presentation.
+Reuse completed hardware-neutral infrastructure. Implement only the subsystem authorized by the current task and respect its physical/software gates.
 
 Do not begin substantial frontend implementation until the backend and relevant integrations are stable.
 
@@ -46,11 +40,35 @@ Before substantial frontend work begins, the relevant backend functional test or
 
 ## Platform
 
-Primary firmware framework:
-ESP-IDF
+Measurement and communication MCU:
+ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
 
-Primary MCU:
-ESP32-S3
+Configured module assumptions:
+16 MB Flash and 8 MB Octal PSRAM; physical module marking remains unverified
+
+Temperature and humidity sensors:
+2x DFRobot Fermion SHT31 SEN0331, digital I2C
+
+Sensor A: I2C0, SDA GPIO8, SCL GPIO9, 100 kHz, high repeatability, 1 Hz, CRC required
+
+Sensor B: I2C1, SDA GPIO10, SCL GPIO11, 100 kHz, high repeatability, 1 Hz, CRC required
+
+Microphone:
+INMP441, digital I2S MEMS, 24-bit source, 48 kHz target; WS GPIO4, BCLK GPIO5, DIN GPIO6, L/R tied to GND for the left channel. Philips I2S uses two 32-clock slots per frame; target BCLK is 3.072 MHz. Wiring and clocks remain physically unverified.
+
+Locked path:
+SEN0331 A → I2C0 → ESP32-S3
+SEN0331 B → I2C1 → ESP32-S3
+INMP441 → I2S → ESP32-S3
+ESP32-S3 → Wi-Fi/MQTT → server
+
+ESP32-S3 owns authoritative acquisition, validation, measurement processing, Wi-Fi, and MQTT. SEN0331 and INMP441 provide digital inputs; the ESP32 ADC is not used for the current mechanical sensors.
+
+`docs/contracts/foundation.md` defines canonical source identity and telemetry mapping. Preserve the existing server telemetry schema.
+
+Physical module marking, SEN0331 address-selection state, I2C electrical verification, physical sensor placement, INMP441 wiring/clock verification, microphone calibration, SPL/dBA/Leq policy, clock synchronization/provisioning mechanisms, and production network/server configuration remain TBD.
+
+The active firmware project is `firmware/esp32s3_datacenter` and uses ESP-IDF 5.5.5.
 
 Messaging:
 MQTT
@@ -76,6 +94,8 @@ E:\Projects\Digital_Twin
 Prefer development tools on D: when practical.
 
 The laptop is used for development, configuration, testing, and deployment preparation.
+
+The physical project scope is the lower rack/server environment. The upper server is reserved for supervisor research and MUST NOT be accessed, probed, configured, tested against, deployed to, or modified by this project.
 
 Final runtime targets the campus data-center server.
 

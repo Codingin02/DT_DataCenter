@@ -22,4 +22,6 @@ Thumbs.db
 Co-Dingin/
 
 .codex/
+.vscode/
+.clangd
 node_modules/

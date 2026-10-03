@@ -239,6 +239,7 @@ async function main() {
         isMqttReady: () => mqttReady && !stopping,
         isStopping: () => stopping,
         logger,
+        staticRoot: configuration.http.staticRoot,
       })
     );
     await listen(httpServer, configuration.http.port, configuration.http.host);

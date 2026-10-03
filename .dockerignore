@@ -1,0 +1,13 @@
+**
+!package.json
+!package-lock.json
+!backend/
+!backend/**
+!docs/
+!docs/contracts/
+!docs/contracts/**
+!frontend/
+!frontend/dist/
+!frontend/dist/**
+!node_modules/
+!node_modules/**

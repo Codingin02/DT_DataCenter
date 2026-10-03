@@ -94,14 +94,11 @@ INSERT INTO digital_twin.sensors (
     metric,
     unit
 )
-VALUES (
-    'test-sensor',
-    'test-site',
-    'test-device',
-    'test-rack',
-    'temperature',
-    'degC'
-);
+VALUES
+    ('test-sensor', 'test-site', 'test-device', 'test-rack', 'temperature', 'degC'),
+    ('test-sensor-2', 'test-site', 'test-device', 'test-rack', 'temperature', 'degC'),
+    ('test-sound-rms', 'test-site', 'test-device', 'test-rack', 'sound_rms_dbfs', 'dBFS'),
+    ('test-sound-peak', 'test-site', 'test-device', 'test-rack', 'sound_peak_dbfs', 'dBFS');
 
 INSERT INTO digital_twin.sensor_positions (
     site_id,
@@ -128,6 +125,8 @@ DECLARE
     state_version_offline bigint;
     measurement_count_before_status bigint;
     ingestion_event_count_before_status bigint;
+    second_source_result record;
+    acoustic_result record;
 BEGIN
     SELECT *
     INTO first_result
@@ -407,6 +406,176 @@ BEGIN
         OR (SELECT count(*) FROM digital_twin.ingestion_events)
             IS DISTINCT FROM ingestion_event_count_before_status THEN
         RAISE EXCEPTION 'device status created telemetry history or ingestion events';
+    END IF;
+
+    SELECT *
+    INTO second_source_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sensor-2/temperature',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 1,
+        p_sensor_id => 'test-sensor-2',
+        p_asset_id => 'test-rack',
+        p_metric => 'temperature',
+        p_value => 22,
+        p_unit => 'degC',
+        p_ts => '2026-01-01T00:02:00Z',
+        p_quality => 'good',
+        p_raw_value => 65535
+    );
+
+    IF second_source_result.outcome IS DISTINCT FROM 'accepted'
+        OR (SELECT count(*) FROM digital_twin.current_state
+            WHERE asset_id = 'test-rack' AND metric = 'temperature') <> 2 THEN
+        RAISE EXCEPTION 'distinct sensor source did not retain independent current state';
+    END IF;
+
+    SELECT *
+    INTO second_source_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sensor-2/temperature',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 1,
+        p_sensor_id => 'test-sensor-2',
+        p_asset_id => 'test-rack',
+        p_metric => 'temperature',
+        p_value => 22,
+        p_unit => 'degC',
+        p_ts => '2026-01-01T00:02:00Z',
+        p_quality => 'good',
+        p_raw_value => 65535
+    );
+
+    IF second_source_result.outcome IS DISTINCT FROM 'duplicate' THEN
+        RAISE EXCEPTION 'raw-word QoS1 duplicate was not idempotent';
+    END IF;
+
+    SELECT *
+    INTO second_source_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sensor-2/temperature',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 1,
+        p_sensor_id => 'test-sensor-2',
+        p_asset_id => 'test-rack',
+        p_metric => 'temperature',
+        p_value => 22,
+        p_unit => 'degC',
+        p_ts => '2026-01-01T00:02:00Z',
+        p_quality => 'good',
+        p_raw_value => 0
+    );
+
+    IF second_source_result.outcome IS DISTINCT FROM 'rejected' THEN
+        RAISE EXCEPTION 'conflicting raw word reused an existing QoS1 identity';
+    END IF;
+
+    SELECT *
+    INTO second_source_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sensor-2/temperature',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 2,
+        p_sensor_id => 'test-sensor-2',
+        p_asset_id => 'test-rack',
+        p_metric => 'temperature',
+        p_value => 23,
+        p_unit => 'degC',
+        p_ts => '2026-01-01T00:03:00Z',
+        p_quality => 'good',
+        p_raw_value => 0
+    );
+
+    IF second_source_result.outcome IS DISTINCT FROM 'accepted'
+        OR (SELECT raw_value FROM digital_twin.current_state
+            WHERE asset_id = 'test-rack'
+              AND sensor_id = 'test-sensor-2'
+              AND metric = 'temperature') IS DISTINCT FROM 0
+        OR (SELECT count(*) FROM digital_twin.measurements
+            WHERE sensor_id = 'test-sensor-2'
+              AND raw_value IN (0, 65535)) <> 2 THEN
+        RAISE EXCEPTION 'same sensor source update or raw-word history is inconsistent';
+    END IF;
+
+    SELECT *
+    INTO acoustic_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sound-rms/sound_rms_dbfs',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 4,
+        p_sensor_id => 'test-sound-rms',
+        p_asset_id => 'test-rack',
+        p_metric => 'sound_rms_dbfs',
+        p_value => -34.5,
+        p_unit => 'dBFS',
+        p_ts => '2026-01-01T00:04:00Z',
+        p_quality => 'good'
+    );
+
+    IF acoustic_result.outcome IS DISTINCT FROM 'accepted' THEN
+        RAISE EXCEPTION 'diagnostic RMS dBFS was not accepted';
+    END IF;
+
+    SELECT *
+    INTO acoustic_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sound-peak/sound_peak_dbfs',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 4,
+        p_sensor_id => 'test-sound-peak',
+        p_asset_id => 'test-rack',
+        p_metric => 'sound_peak_dbfs',
+        p_value => -12.25,
+        p_unit => 'dBFS',
+        p_ts => '2026-01-01T00:04:00Z',
+        p_quality => 'good'
+    );
+
+    IF acoustic_result.outcome IS DISTINCT FROM 'accepted'
+        OR (SELECT count(*) FROM digital_twin.current_state
+            WHERE asset_id = 'test-rack') <> 4 THEN
+        RAISE EXCEPTION 'diagnostic dBFS current state is inconsistent';
+    END IF;
+
+    SELECT *
+    INTO acoustic_result
+    FROM digital_twin.accept_measurement(
+        p_topic => 'dt/test-site/telemetry/test-device/test-sound-rms/sound_rms_dbfs',
+        p_schema_version => '1.0',
+        p_site_id => 'test-site',
+        p_device_id => 'test-device',
+        p_boot_id => 'test-boot',
+        p_seq => 5,
+        p_sensor_id => 'test-sound-rms',
+        p_asset_id => 'test-rack',
+        p_metric => 'sound_rms_dbfs',
+        p_value => -30,
+        p_unit => 'dBFS',
+        p_ts => '2026-01-01T00:05:00Z',
+        p_quality => 'good',
+        p_raw_value => 1
+    );
+
+    IF acoustic_result.outcome IS DISTINCT FROM 'rejected' THEN
+        RAISE EXCEPTION 'raw value was accepted for an acoustic metric';
     END IF;
 END;
 $test$;

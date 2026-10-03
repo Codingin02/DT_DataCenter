@@ -3,12 +3,19 @@
   "scripts": {
     "backend": "node backend/server.js",
     "backup:database": "node scripts/postgres-backup.js backup",
-    "test": "node --test backend/*.test.js frontend/*.test.js",
+    "data:acceptance:cleanup": "node scripts/acceptance-data.js cleanup",
+    "data:acceptance:backfill": "node scripts/acceptance-data.js backfill",
+    "data:acceptance:live": "node scripts/acceptance-data.js live",
+    "data:acceptance:prometheus": "node scripts/acceptance-data.js openmetrics",
+    "data:acceptance:populate": "node scripts/acceptance-data.js populate",
+    "data:acceptance:status": "node scripts/acceptance-data.js status",
+    "frontend:build": "vite build frontend",
+    "test": "node --test backend/*.test.js frontend/*.test.js scripts/*.test.js",
     "test:database": "psql -X --file database/tests/foundation.sql",
     "test:database:restore": "node scripts/postgres-backup.js verify",
     "lint": "eslint backend frontend scripts/*.js eslint.config.js",
-    "format:check": "prettier --check backend frontend scripts/*.js docs/contracts firmware/ESP32S3_DataCenter/README.md README.md eslint.config.js package.json .prettierrc.json .github/workflows/ci.yml",
-    "check": "npm run lint && npm run format:check && npm test"
+    "format:check": "prettier --check backend frontend scripts/*.js docs/contracts README.md eslint.config.js package.json .prettierrc.json .github/workflows/ci.yml",
+    "check": "npm run lint && npm run format:check && npm test && npm run frontend:build"
   },
   "dependencies": {
     "ajv": "^8.20.0",

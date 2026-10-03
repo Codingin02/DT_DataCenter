@@ -68,6 +68,7 @@ export function loadConfiguration(environment = process.env) {
 
   return {
     http: {
+      staticRoot: environment.FRONTEND_DIST?.trim() || undefined,
       host: required(environment, 'HTTP_HOST'),
       port: integer(environment, 'HTTP_PORT', 1, 65535),
     },

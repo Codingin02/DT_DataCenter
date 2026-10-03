@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: DT_DataCenter
+    folder: DT_DataCenter
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: false
+    options:
+      path: E:/Projects/Digital_Twin/observability/grafana/dashboards

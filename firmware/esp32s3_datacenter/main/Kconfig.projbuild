@@ -1,0 +1,83 @@
+menu "DT connectivity"
+
+    config DT_WIFI_SSID
+        string "Wi-Fi station SSID"
+        default ""
+
+    config DT_WIFI_PASSWORD
+        string "Wi-Fi station password"
+        default ""
+
+    config DT_MQTT_BROKER_URI
+        string "MQTT broker URI"
+        default ""
+
+    config DT_MQTT_USERNAME
+        string "MQTT username"
+        default ""
+
+    config DT_MQTT_PASSWORD
+        string "MQTT password"
+        default ""
+
+    config DT_SITE_ID
+        string "Canonical site identity"
+        default ""
+
+    config DT_DEVICE_ID
+        string "Canonical device identity"
+        default ""
+
+    config DT_SHT31_A_TEMPERATURE_SENSOR_ID
+        string "SHT31 A temperature sensor identity"
+        default ""
+
+    config DT_SHT31_A_TEMPERATURE_ASSET_ID
+        string "SHT31 A temperature asset identity"
+        default ""
+
+    config DT_SHT31_A_HUMIDITY_SENSOR_ID
+        string "SHT31 A humidity sensor identity"
+        default ""
+
+    config DT_SHT31_A_HUMIDITY_ASSET_ID
+        string "SHT31 A humidity asset identity"
+        default ""
+
+    config DT_SHT31_B_TEMPERATURE_SENSOR_ID
+        string "SHT31 B temperature sensor identity"
+        default ""
+
+    config DT_SHT31_B_TEMPERATURE_ASSET_ID
+        string "SHT31 B temperature asset identity"
+        default ""
+
+    config DT_SHT31_B_HUMIDITY_SENSOR_ID
+        string "SHT31 B humidity sensor identity"
+        default ""
+
+    config DT_SHT31_B_HUMIDITY_ASSET_ID
+        string "SHT31 B humidity asset identity"
+        default ""
+
+    config DT_ACOUSTIC_RMS_SENSOR_ID
+        string "Acoustic RMS dBFS sensor identity"
+        default ""
+
+    config DT_ACOUSTIC_RMS_ASSET_ID
+        string "Acoustic RMS dBFS asset identity"
+        default ""
+
+    config DT_ACOUSTIC_PEAK_SENSOR_ID
+        string "Acoustic peak dBFS sensor identity"
+        default ""
+
+    config DT_ACOUSTIC_PEAK_ASSET_ID
+        string "Acoustic peak dBFS asset identity"
+        default ""
+
+    config DT_SNTP_SERVER
+        string "SNTP server"
+        default ""
+
+endmenu

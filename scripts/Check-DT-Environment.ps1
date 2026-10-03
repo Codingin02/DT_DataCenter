@@ -26,8 +26,6 @@ Write-Host "PROJECT PATHS" -ForegroundColor Yellow
 
 $Paths = @(
     "$Root\backend",
-    "$Root\frontend",
-    "$Root\firmware",
     "$Root\database",
     "$Root\docker",
     "$Root\mqtt",

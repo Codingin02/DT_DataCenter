@@ -1,3 +1,109 @@
-﻿name: dt_datacenter
+name: dt_datacenter
 
-services: {}
+services:
+  postgres:
+    image: postgres:17.11-alpine3.24
+    pull_policy: never
+    environment:
+      POSTGRES_DB: DT_DataCenter
+      POSTGRES_USER: bagus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../database/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  mosquitto:
+    image: eclipse-mosquitto:2.1.2-alpine
+    pull_policy: never
+    environment:
+      MQTT_USERNAME: ${MQTT_USERNAME:-dt-datacenter}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}}
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - |
+        mosquitto_passwd -b -c /run/mosquitto/passwords "$$MQTT_USERNAME" "$$MQTT_PASSWORD"
+        chown mosquitto:mosquitto /run/mosquitto/passwords
+        exec /usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    tmpfs:
+      - /run/mosquitto
+    ports:
+      - ${DT_MQTT_BIND_ADDRESS:-127.0.0.1}:${DT_MQTT_PORT:-1883}:1883
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mosquitto_pub -h 127.0.0.1 -u "$$MQTT_USERNAME" -P "$$MQTT_PASSWORD" -t dt/healthcheck -m "" -q 1',
+        ]
+      interval: 3s
+      timeout: 8s
+      retries: 10
+
+  backend:
+    image: dt-datacenter-backend:local
+    pull_policy: never
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+      network: none
+      pull: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    environment:
+      FRONTEND_DIST: /app/frontend/dist
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 3000
+      MQTT_CLIENT_ID: dt-r1-local-backend
+      MQTT_MAX_PAYLOAD_BYTES: 65536
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}}
+      MQTT_SESSION_EXPIRY_SECONDS: 86400
+      MQTT_URL: mqtt://mosquitto:1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-dt-datacenter}
+      PGDATABASE: DT_DataCenter
+      PGHOST: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      PGPORT: 5432
+      PGUSER: bagus
+    ports:
+      - ${DT_HTTP_BIND_ADDRESS:-127.0.0.1}:${DT_HTTP_PORT:-3000}:3000
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    stop_grace_period: 15s
+
+  nginx:
+    image: nginx:1.28-alpine
+    pull_policy: never
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - ${DT_NGINX_BIND_ADDRESS:-127.0.0.1}:${DT_NGINX_PORT:-80}:80
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:80/nginx-health || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
