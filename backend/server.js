@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { clearInterval, setInterval, clearTimeout, setTimeout } from 'node:timers';
 
 import { connect } from 'mqtt';
 import pg from 'pg';
@@ -11,6 +12,8 @@ import {
 } from './app.js';
 import { loadConfiguration } from './config.js';
 import { createMetrics } from './metrics.js';
+import { createShellyAdapter, registerShelly } from './shelly.js';
+import { createHostNetworkCollector, registerHostNetwork } from './host-network.js';
 
 const { Pool } = pg;
 const telemetryTopic = 'dt/+/telemetry/+/+/+';
@@ -87,10 +90,14 @@ async function main() {
   let mqttReady = false;
   let stopping = false;
   let shutdownPromise;
+  let shelly;
+  let shellyTimer;
+  let hostNetwork;
 
   const stop = (signal, forceMqtt = false) => {
     if (shutdownPromise) return shutdownPromise;
     stopping = true;
+    clearInterval(shellyTimer);
     mqttReady = false;
     metrics.setMqttConnected(false);
     metrics.setPostgresReady(false);
@@ -98,6 +105,7 @@ async function main() {
     if (signal !== 'startup-failure') console.info(`Stopping on ${signal}.`);
 
     shutdownPromise = (async () => {
+      await hostNetwork?.stop();
       const resourceResults = await Promise.allSettled([
         closeHttp(httpServer),
         closeMqtt(mqttClient, forceMqtt),
@@ -169,9 +177,30 @@ async function main() {
       return result;
     };
     const processMessage = (topic, payload) =>
-      topic.split('/')[2] === 'device'
-        ? processDeviceStatus(topic, payload)
-        : processTelemetry(topic, payload);
+      shelly?.handles(topic)
+        ? shelly.ingest(topic, payload)
+        : topic.split('/')[2] === 'device'
+          ? processDeviceStatus(topic, payload)
+          : processTelemetry(topic, payload);
+
+    const replySource = `${configuration.mqtt.clientId}/shelly`;
+    if (configuration.hostNetwork) await registerHostNetwork(query, configuration.hostNetwork);
+    if (configuration.shellyDeviceId) {
+      const migration = await query(
+        'SELECT version FROM digital_twin.schema_migrations WHERE version=$1',
+        ['shelly']
+      );
+      if (!migration.rowCount)
+        throw new Error('Required database migration shelly is not applied.');
+      await registerShelly(query, configuration.shellyDeviceId);
+      shelly = createShellyAdapter({
+        pool,
+        deviceId: configuration.shellyDeviceId,
+        replySource,
+        onCurrentState: currentStateEvents.publish,
+        onOutcome: (outcome) => metrics.recordIngestion(outcome),
+      });
+    }
 
     mqttClient = connect(configuration.mqtt.url, {
       clean: false,
@@ -201,14 +230,59 @@ async function main() {
       metrics.setMqttConnected(true);
       mqttReady = false;
       if (stopping) return;
-      mqttClient.subscribe([telemetryTopic, deviceStatusTopic], { qos: 1 }, (error) => {
-        if (error) {
-          logger.error('MQTT subscription failed.', error);
-          return;
+      mqttClient.subscribe(
+        [telemetryTopic, deviceStatusTopic, ...(shelly?.topics ?? [])],
+        { qos: 1 },
+        (error, granted) => {
+          if (error || granted.some(({ qos }) => qos > 2)) {
+            logger.error(
+              'MQTT subscription failed.',
+              error ?? new Error('Broker denied subscription.')
+            );
+            return;
+          }
+          mqttReady = !stopping;
+          if (configuration.hostNetwork && !hostNetwork && !stopping) {
+            hostNetwork = createHostNetworkCollector({
+              configuration: configuration.hostNetwork,
+              connected: () => mqttReady && !stopping,
+              publish: (...args) =>
+                new Promise((resolve, reject) => {
+                  const timeout = setTimeout(
+                    () => reject(new Error('Host MQTT publish acknowledgement timed out.')),
+                    3000
+                  );
+                  mqttClient
+                    .publishAsync(...args)
+                    .then(resolve, reject)
+                    .finally(() => clearTimeout(timeout));
+                }),
+              onError: (error) => logger.error('Host network collection failed.', error),
+            });
+            hostNetwork.start();
+          }
+          console.info(`MQTT subscribed to ${telemetryTopic} and ${deviceStatusTopic} with QoS 1.`);
+          clearInterval(shellyTimer);
+          if (shelly) {
+            const poll = () => {
+              if (!mqttReady || stopping) return;
+              void mqttClient
+                .publishAsync(
+                  `${configuration.shellyDeviceId}/rpc`,
+                  JSON.stringify({
+                    id: 'dt-status',
+                    src: replySource,
+                    method: 'Shelly.GetStatus',
+                  }),
+                  { qos: 1 }
+                )
+                .catch((error) => logger.error('Shelly status request failed.', error));
+            };
+            poll();
+            shellyTimer = setInterval(poll, 10_000);
+          }
         }
-        mqttReady = !stopping;
-        console.info(`MQTT subscribed to ${telemetryTopic} and ${deviceStatusTopic} with QoS 1.`);
-      });
+      );
     });
     for (const event of ['close', 'disconnect', 'offline', 'reconnect']) {
       mqttClient.on(event, () => {

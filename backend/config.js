@@ -52,6 +52,30 @@ export function loadConfiguration(environment = process.env) {
   if (mqttClientId.length > 128) {
     throw new Error('MQTT_CLIENT_ID must be at most 128 characters.');
   }
+  const shellyDeviceId = environment.SHELLY_MQTT_ID?.trim() || null;
+  if (shellyDeviceId && !/^shellyplugpmg3-[a-f0-9]{12}$/.test(shellyDeviceId)) {
+    throw new Error('SHELLY_MQTT_ID must identify a Shelly Plug PM Gen3.');
+  }
+  let hostNetwork = null;
+  if (environment.HOST_EXPORTER_URL?.trim()) {
+    const url = parsedUrl(
+      environment.HOST_EXPORTER_URL.trim(),
+      'HOST_EXPORTER_URL',
+      new Set(['http:', 'https:'])
+    );
+    if (url.username || url.password || url.search)
+      throw new Error('HOST_EXPORTER_URL must not contain credentials or query parameters.');
+    const platform = required(environment, 'HOST_EXPORTER_PLATFORM');
+    const deviceId = required(environment, 'HOST_DEVICE_ID');
+    const nic = required(environment, 'HOST_NETWORK_NIC');
+    if (
+      !['windows', 'linux'].includes(platform) ||
+      !/^host-[a-z0-9][a-z0-9._-]{0,58}$/.test(deviceId) ||
+      nic.length > 256
+    )
+      throw new Error('Invalid host exporter identity or platform.');
+    hostNetwork = { url: url.href, platform, deviceId, nic };
+  }
 
   const databaseUrl = environment.DATABASE_URL?.trim();
   const postgres = databaseUrl
@@ -81,5 +105,7 @@ export function loadConfiguration(environment = process.env) {
       maxPayloadBytes: integer(environment, 'MQTT_MAX_PAYLOAD_BYTES', 1024, 1048576),
     },
     postgres,
+    shellyDeviceId,
+    hostNetwork,
   };
 }

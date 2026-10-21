@@ -1,8 +1,8 @@
-# DT_DataCenter Design Contract
+# Digital Twin Data Center Design Contract
 
 ## Product intent
 
-DT_DataCenter is a spatial engineering workstation for one physical data-center rack.
+Digital Twin Data Center is a spatial engineering workstation for one physical rack.
 It combines reference geometry, canonical engineering identity, observed state, and
 traceable measurement context without presenting unavailable capabilities as complete.
 
@@ -12,14 +12,14 @@ generic SaaS dashboard, or spreadsheet placed inside a browser.
 
 ## Digital Twin scope
 
-The active scope is R1 Representation. The application represents geometry, assets,
+The active scope is physical monitoring and historical analysis. The application represents geometry, assets,
 systems, relationships, measurement definitions, spatial registration, and the canonical
-physical-to-digital path. It is prepared to display observed state from that path, but it
-does not imply physical validation before real hardware, placement, and network evidence
-exist.
+physical-to-digital path. It displays observed ESP32, Shelly, and host NIC telemetry,
+without treating operational data as proof of calibration or surveyed placement.
 
-The physical scope is one rack. Multiple cabinets visible in `rack.glb` are reference
-geometry and are not automatically physical asset records.
+The operational model is one procedural Three.js 42U rack, using the Nirax NR 9042
+reference proportions. Provisional sensor, tray, and fan positions remain installation
+reference geometry until measured. The imported multi-cabinet GLB is not the operational scene.
 
 ## Design principles
 
@@ -48,8 +48,8 @@ The single-page shell contains a compact top bar, narrow primary navigation rail
 contextual workspace sidebar, main working surface, contextual inspector when selection
 warrants it, and measurement history/context when relevant.
 
-Workspace identity belongs in the top bar as a path such as `Twin / Spatial
-representation` or `Systems / Telecommunications`. No detached workspace title floats
+Workspace identity belongs in the top breadcrumb, reaching the active context, such as
+`Twin > Measurement > Temperature` or `Systems > Telecommunications`. No detached workspace title floats
 over the working surface.
 
 ## Navigation model
@@ -78,7 +78,7 @@ parallel stores, transports, viewers, or models.
 
 Twin is the primary spatial Digital Twin workspace. The Three.js viewport is dominant.
 Its sidebar contains reference/spatial readiness, measurement-layer controls,
-registration controls, layer state, and factual counts.
+layer state, and useful source context. Default monitoring does not expose redundant registration controls.
 
 Twin supports reference geometry inspection; geometry, sensor-anchor, and localized
 measurement-zone visibility; mutually exclusive Temperature and Humidity spatial
@@ -86,8 +86,8 @@ metrics; acoustic dBFS source context without thermal semantics; explicit manual
 registration; selection-driven inspector content; and contextual history only when a
 source or metric is selected.
 
-With no selection, the inspector quietly explains the available context. With no anchor
-or observation, the viewport remains useful and states why no marker or zone is visible.
+With no selection, the inspector is hidden and the viewport retains the space. Missing
+observations and functional errors remain visible without normal-success explanatory cards.
 
 ## Assets
 
@@ -103,15 +103,17 @@ observed sources and presents system, source, metric, unit, definition state, ob
 state, latest value, source time, and spatial state.
 
 Canonical families are Environment (Temperature and Humidity), Acoustic diagnostics
-(RMS dBFS and Peak dBFS), and Device/system state where canonical evidence exists. An
+(RMS dBFS and Peak dBFS), Electrical, Telecommunications, and Device/system state where canonical evidence exists. An
 absent observation is `Not observed`, never zero. `Locate in Twin` uses the existing
 identity; an unregistered source reports `Spatial anchor unregistered` and does not gain
 an inferred position.
 
 ## Analytics
 
-Analytics owns historical analysis. It provides query context and one primary chart
-surface with clear axes and subtle grid structure. Empty history remains a complete
+Analytics owns historical analysis through the existing ECharts implementation. Its sidebar
+controls category, source, time range, aggregation, and Live/Pause; the main surface uses
+category-specific charts with clear engineering axes, Asia/Jakarta time labels, honest gaps,
+tooltips, series visibility, zoom/reset, fullscreen, and responsive sizing. Empty history remains a complete
 analysis surface labeled `No historical series available`; the browser never accumulates
 SSE messages into synthetic history.
 
@@ -160,10 +162,10 @@ campus topology.
 
 ## Electrical domain
 
-Electrical is a structured absence model when instrumentation is unavailable. It shows
-rack-power context, unconfigured measurement source, unmodeled topology, unavailable
-instrumentation, and no observed measurements. It does not invent a PDU, UPS, breaker,
-feed, voltage, current, power, or energy value.
+Electrical displays the existing Rack Power Shelly Plug PM Gen3 PM1 observations and
+device diagnostics. Preserve native units, signed power, energy counters, errors, and flags.
+Unsupported measurements remain unavailable. Do not invent a PDU, UPS, breaker, feed,
+per-component power consumption, or relay control.
 
 ## Mechanical domain
 
@@ -214,17 +216,18 @@ Registered anchor and matching observation → marker and localized zone
 ```
 
 Objects update in place when current state changes. A state update must not reload the
-GLB, scene, camera, renderer, controls, or whole overlay group.
+model, scene, camera, renderer, controls, or whole overlay group.
 
 ## Temperature reference visualization
 
-The shared continuous mapping is below 18 °C in a cool blue family, 18 °C at a blue-cyan
-transition, 22.5 °C at a green midpoint, 27 °C at a yellow-orange transition, and above
-27 °C in a restrained warm orange family.
+The shared temperature display domain is 10–40 °C, using muted blue, green, amber,
+terracotta, and restrained red. The compact TEMP legend and sensor colors use the same
+mapping. Colors clamp outside the display domain; measurements remain unchanged.
 
 The legend remains visible whenever Temperature is selected, including with no
-observation. It labels 18–27 °C as the `Recommended envelope` for air-cooled datacom
-equipment inlet conditions under ASHRAE TC 9.9. It is guidance, not an alarm, fault,
+observation. Context help explains the 18–27 °C ASHRAE TC 9.9 A1–A4 recommended inlet
+range and the IBM x3250 M4 10–35 °C operating-air reference at 0–914.4 m altitude.
+These are guidance, not an alarm, fault,
 shutdown threshold, or conformity result. The anchor location role is `Unclassified`
 until physically registered; an exhaust or unknown-role reading cannot be judged against
 the inlet envelope.
@@ -249,22 +252,28 @@ or creates a thermal field.
 ## 3D viewer contract
 
 The application preserves one Three.js scene, `PerspectiveCamera`, `WebGLRenderer`,
-`OrbitControls`, `GLTFLoader`, model root, overlay owner, and `ResizeObserver`. The GLB is
-loaded once and reused across spatial contexts.
+`OrbitControls`, procedural rack model root, overlay owner, and `ResizeObserver`. The rack
+is constructed once and reused across spatial contexts; the existing `GLTFLoader` path
+is only for explicitly selected imported assets, not the operational rack.
 
-The viewer uses render-on-demand. Camera interaction, resize, layer changes, selection,
-registration preview, and affected current-state updates request rendering; no continuous
-animation loop is allowed.
+The viewer uses one frame scheduler. Camera interaction, resize, layer changes, selection,
+registration preview, and affected current-state updates request rendering. Enabled sensor
+effects may continue that scheduler only while fresh observations exist in the visible Twin.
+Inactive workspaces, hidden documents, stale sources, and reduced-motion preferences stop
+animated scheduling; the base model remains render-on-demand.
 
-Lighting preserves PBR materials and embedded textures. Neutral environment, key, and
+Lighting preserves the black-metal and tempered-glass material response. Neutral environment, key, and
 fill illumination keep front, rear, sides, and top readable without crushed black faces
-or washed-white materials. No external HDR, material replacement, decorative
-environment, emissive glow, or source GLB mutation is allowed.
+or washed-white materials. The existing Textured/Contrast surface modes preserve original
+materials without model reloads. No external HDR, decorative environment, emissive glow,
+or source asset mutation is allowed.
 
-Spatial zones are bounded translucent fields centered on registered measured points. One
-source produces one zone; two sources produce two zones. Overlap is visual only. The
-application does not reconstruct a continuous field, interpolate unmeasured space,
-simulate airflow, or imply CFD.
+Spatial zones are bounded translucent fields centered on existing sensor anchors. The
+0.30 m thermal visual radius is illustrative, not sensor coverage; unmeasured anchor
+positions retain their reference status. Fresh SHT31 observations color separate local
+fields. Upward particles illustrate direction, not measured air velocity or CFD. INMP441
+rings indicate fresh dBFS activity, not SPL, waveforms, frequency, or acoustic coverage.
+Overlap is visual only; no continuous measured field or unobserved values are inferred.
 
 ## Typography
 
@@ -280,10 +289,10 @@ reserved for compact technical eyebrows and legends.
 
 ## Color roles
 
-Use warm neutral light surfaces, graphite chrome, dark primary ink, and a restrained
-blue-cyan interaction accent. Approximate anchors are `#F1EFED` for application/workspace
-neutral, near-white warm neutral for raised surfaces, `#161513` for ink, `#D4CFCA` for
-borders, `#2A2F2F` for chrome, and `#006B8F` for interaction.
+Use neutral graphite surfaces, charcoal chrome, light neutral text, and restrained
+selection accents. Shared color roles are defined in `frontend/styles.css`: `#242727`
+chrome, `#292C2C` workspace, `#333737` raised surface, `#E5E7E5` primary text,
+`#464B4B` separators, and `#B8C8C4` interaction. Avoid neon accents and decorative gradients.
 
 Green means healthy/available, amber attention, red fault, and gray unavailable/not
 observed. Semantic colors are not branding. Measurement gradients encode values, not
@@ -291,10 +300,10 @@ alarm states.
 
 ## Surface hierarchy
 
-Use three light levels: soft neutral application background, lighter workspace surface,
-and near-white raised/context surface. The viewport keeps a cooler engineering neutral
-so dark geometry remains legible. The contextual sidebar mediates dark chrome and light
-workspaces.
+Use three dark levels: charcoal application chrome, graphite workspace, and slightly
+lighter raised/context surfaces. Only the Twin 3D canvas uses a light neutral background
+so black rack geometry remains legible. Its controls, sidebar, inspector, and tooltips
+remain dark. Workspaces share these tokens without local theme overrides.
 
 ## Spacing
 
@@ -326,6 +335,11 @@ rows or controls.
 Charts use a clear title, metric/unit context, restrained axes, subtle grid lines, and
 measured data only. Reference overlays are labeled and distinct from series. Empty charts
 retain plotting structure without invented lines or random decoration.
+Use the shared muted amber, sage, terracotta, violet, and steel series palette. Sensor
+measurement gradients retain their canonical measurement scales independently of chart colors.
+Reuse ECharts instances for updates, resize through the existing observer, and dispose
+removed chart instances and their listeners. Do not mix units on an unlabeled shared axis
+or connect observations across genuine downtime.
 
 ## Empty/unavailable state
 
@@ -367,11 +381,12 @@ cards.
 ## Performance rules
 
 - Keep one viewer and one current-state owner.
-- Load and parse the GLB once.
+- Construct the procedural rack once; load any explicitly selected imported model once.
 - Use render-on-demand and update affected overlay objects in place.
 - Bound pixel ratio and GPU resource count.
 - Dispose owned geometry, material, and texture resources when removed or destroyed.
-- Do not add interpolation grids, post-processing, shader frameworks, or chart libraries.
+- Reuse the existing ECharts implementation; do not add another chart engine.
+- Do not add interpolation grids, post-processing, or shader frameworks.
 
 ## Data truthfulness rules
 
@@ -392,7 +407,7 @@ borders; neon, glow, glass, and decorative gradients; full-rack fields from spar
 points; placeholder controls; invented topology; browser-generated history/events/alarm
 thresholds; and unsupported physical or capability claims.
 
-## R2 scalability
+## Observation continuity
 
 Physical-to-digital observation attaches to the existing reference model through stable
 asset, device, sensor, metric, and spatial identities. Canonical measurements populate

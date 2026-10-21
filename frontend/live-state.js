@@ -25,6 +25,21 @@ const METRIC_UNITS = new Map([
   ['power_factor_ratio', 'ratio'],
   ['frequency_hz', 'Hz'],
   ['energy_wh_total', 'Wh'],
+  ['returned_energy_wh_total', 'Wh'],
+  ['wifi_rssi_dbm', 'dBm'],
+  ['ram_size_bytes', 'bytes'],
+  ['ram_free_bytes', 'bytes'],
+  ['ram_min_free_bytes', 'bytes'],
+  ['fs_size_bytes', 'bytes'],
+  ['fs_free_bytes', 'bytes'],
+  ['device_temperature_c', 'degC'],
+  ['uptime_s', 's'],
+  ['mqtt_connected', 'ratio'],
+  ['wifi_connected', 'ratio'],
+  ['restart_required', 'ratio'],
+  ['reset_reason', 'count'],
+  ['pm1_error_count', 'count'],
+  ['pm1_flag_count', 'count'],
 ]);
 const QUALITY = new Set(['good', 'degraded', 'unknown']);
 const SOURCE_STATUS = new Set(['fresh', 'stale', 'offline', 'unknown', 'invalid']);
@@ -133,6 +148,56 @@ export function currentStateKey(value) {
   return JSON.stringify([value.asset_id, value.sensor_id, value.metric]);
 }
 
+export class LiveObservationBuffer {
+  constructor() {
+    this.points = [];
+    this.last = null;
+    this.version = 0n;
+    this.interrupted = false;
+  }
+
+  append(record, connected = true, now = Date.now()) {
+    if (!connected) this.interrupted = true;
+    const length = this.points.length;
+    this.points = this.points.filter((point) => Date.parse(point.source_ts) >= now - 300_000);
+    const trimmed = length !== this.points.length;
+    if (
+      !record ||
+      !Number.isFinite(record.value) ||
+      !Number.isFinite(Date.parse(record.source_ts)) ||
+      !DECIMAL_ID.test(record.state_version) ||
+      (this.last && currentStateKey(record) !== currentStateKey(this.last)) ||
+      BigInt(record.state_version) <= this.version
+    )
+      return trimmed;
+    this.version = BigInt(record.state_version);
+    if (['offline', 'invalid'].includes(record.source_status)) {
+      this.interrupted = true;
+      return trimmed;
+    }
+    const time = Date.parse(record.source_ts);
+    if (
+      time < now - 300_000 ||
+      (this.last &&
+        (record.measurement_id === this.last.measurement_id ||
+          time <= Date.parse(this.last.source_ts)))
+    )
+      return trimmed;
+    const gapLimit = record.device_id === 'rack-controller' ? 1500 : 30_000;
+    const breakBefore = Boolean(
+      this.last &&
+      (this.interrupted ||
+        record.boot_id !== this.last.boot_id ||
+        time - Date.parse(this.last.source_ts) > gapLimit)
+    );
+    this.last = { ...record, breakBefore };
+    this.points.push(this.last);
+    if (this.points.length > 300) this.points.splice(0, this.points.length - 300);
+    this.interrupted = false;
+    return true;
+  }
+}
+
 export function summarizeDeviceStatus(records) {
   if (records.length === 0) return 'unknown — not observed';
   if (records.every(({ source_status: status }) => status === 'offline')) return 'offline';
@@ -142,6 +207,8 @@ export function summarizeDeviceStatus(records) {
 export class LiveCurrentState {
   constructor({
     assetId,
+    assetIds,
+    deviceId = null,
     fetchImpl = globalThis.fetch,
     EventSourceImpl = globalThis.EventSource,
     onRecordsChange = () => {},
@@ -151,6 +218,14 @@ export class LiveCurrentState {
     if (this.assetId !== '' && !CANONICAL_ID.test(this.assetId)) {
       throw new TypeError('Configured asset_id is invalid.');
     }
+    this.assetIds = new Set(assetIds ?? [this.assetId].filter(Boolean));
+    if ([...this.assetIds].some((id) => typeof id !== 'string' || !CANONICAL_ID.test(id))) {
+      throw new TypeError('Configured asset scope is invalid.');
+    }
+    if (deviceId !== null && (typeof deviceId !== 'string' || !CANONICAL_ID.test(deviceId))) {
+      throw new TypeError('Configured device_id is invalid.');
+    }
+    this.deviceId = deviceId;
     this.fetchImpl = fetchImpl.bind(globalThis);
     this.EventSourceImpl = EventSourceImpl;
     this.onRecordsChange = onRecordsChange;
@@ -164,12 +239,35 @@ export class LiveCurrentState {
   }
 
   get records() {
-    return [...this.current.values()];
+    const records = [...this.current.values()];
+    const hostNics = new Map();
+    for (const record of records) {
+      if (!record.device_id.startsWith('host-') || !record.sensor_id.startsWith('nic-')) continue;
+      const latest = hostNics.get(record.device_id);
+      if (!latest || BigInt(record.state_version) > BigInt(latest.state_version))
+        hostNics.set(record.device_id, record);
+    }
+    return records.filter(
+      (record) =>
+        !hostNics.has(record.device_id) ||
+        !record.sensor_id.startsWith('nic-') ||
+        record.sensor_id.split('-net_')[0] ===
+          hostNics.get(record.device_id).sensor_id.split('-net_')[0]
+    );
+  }
+
+  addAssets(ids) {
+    if (ids.some((id) => typeof id !== 'string' || !CANONICAL_ID.test(id)))
+      throw new TypeError('Configured asset scope is invalid.');
+    const added = ids.filter((id) => !this.assetIds.has(id));
+    for (const id of added) this.assetIds.add(id);
+    if (added.length && this.eventSource && !this.destroyed) void this.synchronize();
+    return added.length > 0;
   }
 
   start() {
     if (this.destroyed || this.eventSource !== null) return false;
-    if (this.assetId === '') {
+    if (this.assetIds.size === 0) {
       this.onConnectionChange(LIVE_STATE.UNCONFIGURED);
       return false;
     }
@@ -212,15 +310,23 @@ export class LiveCurrentState {
     this.onConnectionChange(LIVE_STATE.SYNCHRONIZING);
 
     try {
-      const response = await this.fetchImpl(
-        `/api/assets/${encodeURIComponent(this.assetId)}/current-state`,
-        { signal: controller.signal }
+      const snapshots = await Promise.all(
+        [...this.assetIds].map(async (id) => {
+          const response = await this.fetchImpl(
+            `/api/assets/${encodeURIComponent(id)}/current-state`,
+            {
+              signal: controller.signal,
+            }
+          );
+          if (!response.ok)
+            throw new Error(`Current-state snapshot returned HTTP ${response.status}.`);
+          const rows = await response.json();
+          if (!Array.isArray(rows)) throw new Error('Current-state snapshot must be an array.');
+          return rows;
+        })
       );
-      if (!response.ok) throw new Error(`Current-state snapshot returned HTTP ${response.status}.`);
-      const rows = await response.json();
-      if (!Array.isArray(rows)) throw new Error('Current-state snapshot must be an array.');
       if (this.destroyed || revision !== this.snapshotRevision) return;
-      this.apply(rows);
+      this.apply(snapshots.flat());
       this.onConnectionChange(LIVE_STATE.LIVE);
     } catch (error) {
       if (error?.name !== 'AbortError' && !this.destroyed && revision === this.snapshotRevision) {
@@ -239,7 +345,8 @@ export class LiveCurrentState {
         this.rejectRecord();
         continue;
       }
-      if (record.asset_id !== this.assetId) continue;
+      if (!this.assetIds.has(record.asset_id)) continue;
+      if (this.deviceId !== null && record.device_id !== this.deviceId) continue;
       const key = currentStateKey(record);
       const previous = this.current.get(key);
       if (previous && BigInt(previous.state_version) >= BigInt(record.state_version)) continue;

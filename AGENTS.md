@@ -1,14 +1,16 @@
-# DT_DataCenter Engineering Rules
+# Digital Twin Data Center Engineering Rules
 
-Project: Digital Twin Data Center Laboratorium Kampus
+Project: Digital Twin Data Center
 Identifier: DT_DataCenter
 Project root: E:\Projects\Digital_Twin
 Owner/admin identifier: bagus
-Active maturity: R1 Representation only
-Out of current scope: R2, R3, R4
+Active scope: physical acquisition, monitoring, historical analytics, and deployment
+Out of current scope: autonomous control, unsupported measurements, and unapproved deployment targets
 Physical scope: one rack in the lower rack/server environment
 Measurement and communication MCU: ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
 Environmental sensors: 2x DFRobot Fermion SHT31 SEN0331 and INMP441
+
+The official product name and all branding are exactly Digital Twin Data Center. Do not append classifications, institutional framing, or context from other projects. Preserve existing technical identifiers, paths, contracts, and safety boundaries.
 
 ## Execution
 
@@ -36,25 +38,25 @@ Reuse completed hardware-neutral infrastructure. Implement only the subsystem au
 
 Do not begin substantial frontend implementation until the backend and relevant integrations are stable.
 
-Before substantial frontend work begins, the relevant backend functional test or backtest must complete successfully twice.
+Use relevant canonical validation for affected behavior. Reuse verified backend integration results when the current change does not affect them.
 
 ## Platform
 
 Measurement and communication MCU:
 ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
 
-Configured module assumptions:
-16 MB Flash and 8 MB Octal PSRAM; physical module marking remains unverified
+Configured flash and PSRAM:
+16 MB Flash and 8 MB Octal PSRAM; configuration does not substitute for independent capacity verification
 
 Temperature and humidity sensors:
 2x DFRobot Fermion SHT31 SEN0331, digital I2C
 
-Sensor A: I2C0, SDA GPIO8, SCL GPIO9, 100 kHz, high repeatability, 1 Hz, CRC required
+Sensor A: I2C0, SDA GPIO8, SCL GPIO9, current configured clock 50 kHz, high repeatability, 1 Hz, CRC required
 
-Sensor B: I2C1, SDA GPIO10, SCL GPIO11, 100 kHz, high repeatability, 1 Hz, CRC required
+Sensor B: I2C1, SDA GPIO10, SCL GPIO11, current configured clock 50 kHz, high repeatability, 1 Hz, CRC required
 
 Microphone:
-INMP441, digital I2S MEMS, 24-bit source, 48 kHz target; WS GPIO4, BCLK GPIO5, DIN GPIO6, L/R tied to GND for the left channel. Philips I2S uses two 32-clock slots per frame; target BCLK is 3.072 MHz. Wiring and clocks remain physically unverified.
+INMP441, digital I2S MEMS, 24-bit source, 48 kHz configured; WS GPIO4, BCLK GPIO5, DIN GPIO6, L/R tied to GND for the left channel. Philips I2S uses two 32-clock slots per frame; target BCLK is 3.072 MHz. Working acquisition does not substitute for physical clock measurement or acoustic calibration.
 
 Locked path:
 SEN0331 A → I2C0 → ESP32-S3
@@ -66,9 +68,9 @@ ESP32-S3 owns authoritative acquisition, validation, measurement processing, Wi-
 
 `docs/contracts/foundation.md` defines canonical source identity and telemetry mapping. Preserve the existing server telemetry schema.
 
-Physical module marking, SEN0331 address-selection state, I2C electrical verification, physical sensor placement, INMP441 wiring/clock verification, microphone calibration, SPL/dBA/Leq policy, clock synchronization/provisioning mechanisms, and production network/server configuration remain TBD.
+Final surveyed sensor placement, electrical margin characterization, I2S clock measurement, microphone calibration, precise timestamp accuracy, and dedicated-server configuration require their own evidence. Preserve the existing SNTP timing and USB/NVS provisioning; neither is a missing implementation.
 
-The active firmware project is `firmware/esp32s3_datacenter` and uses ESP-IDF 5.5.5.
+The active firmware authority is `E:\Projects\IOT ESP32 Project\Digital Twin Data Center\DT_DataCenter\DT_DataCenter.ino`, using the Arduino ESP32 toolchain and ESP-MQTT. Its existing acquisition code and private `local_config.h` must be preserved. The repository's `firmware/esp32s3_datacenter` is not the authority for the running board.
 
 Messaging:
 MQTT
@@ -95,9 +97,9 @@ Prefer development tools on D: when practical.
 
 The laptop is used for development, configuration, testing, and deployment preparation.
 
-The physical project scope is the lower rack/server environment. The upper server is reserved for supervisor research and MUST NOT be accessed, probed, configured, tested against, deployed to, or modified by this project.
+The physical project scope is the lower rack/server environment. The upper server MUST NOT be accessed, probed, configured, tested against, deployed to, or modified by this project.
 
-Final runtime targets the campus data-center server.
+Final runtime targets an authorized dedicated server; deployment there requires separate verification.
 
 Keep configured Windows services manual-start unless project requirements explicitly change.
 

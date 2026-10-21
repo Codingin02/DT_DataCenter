@@ -75,23 +75,79 @@ const readCurrentStateSql = `
   WHERE asset_id = $1::digital_twin.canonical_id
   ORDER BY metric, sensor_id`;
 
-const readHistorySql = `
-  SELECT
-    sensor_id,
-    unit,
-    date_bin($6::integer * interval '1 second', ts, timestamptz '2000-01-01') AS bucket,
-    avg(value) AS average,
-    min(value) AS minimum,
-    max(value) AS maximum,
-    count(*) AS sample_count
-  FROM digital_twin.measurements
-  WHERE asset_id = $1::digital_twin.canonical_id
-    AND metric = $2::digital_twin.canonical_id
-    AND ($3::digital_twin.canonical_id IS NULL OR sensor_id = $3)
-    AND ts >= $4::timestamptz
-    AND ts < $5::timestamptz
-  GROUP BY sensor_id, unit, bucket
-  ORDER BY sensor_id, bucket`;
+const historySourceSql = `
+  WITH observations AS (
+    SELECT sensor_id, unit, value, ts, quality, received_at, measurement_id,
+      date_bin($6::integer * interval '1 second', ts, timestamptz '2000-01-01') AS bucket,
+      extract(epoch FROM ts - lag(ts) OVER (
+        PARTITION BY sensor_id, unit ORDER BY ts, received_at, measurement_id
+      )) AS gap_seconds
+    FROM digital_twin.measurements
+    WHERE asset_id = $1::digital_twin.canonical_id
+      AND metric = $2::digital_twin.canonical_id
+      AND ($3::digital_twin.canonical_id IS NULL OR sensor_id = $3)
+      AND ts >= $4::timestamptz
+      AND ts < $5::timestamptz
+  ), buckets AS (
+    SELECT sensor_id, unit, bucket,
+      avg(value) AS average, min(value) AS minimum, max(value) AS maximum,
+      count(*) AS sample_count, min(ts) AS first_ts, max(ts) AS last_ts,
+      count(*) FILTER (WHERE quality = 'good') AS good_count,
+      count(*) FILTER (WHERE quality = 'degraded') AS degraded_count,
+      count(*) FILTER (WHERE quality = 'unknown') AS unknown_count,
+      coalesce(max(gap_seconds), 0) AS max_gap_seconds
+    FROM observations
+    GROUP BY sensor_id, unit, bucket
+  ), latest AS (
+    SELECT DISTINCT ON (sensor_id, unit, bucket)
+      sensor_id, unit, bucket, value AS latest, quality
+    FROM observations
+    ORDER BY sensor_id, unit, bucket, ts DESC, received_at DESC, measurement_id DESC
+  )`;
+
+const historyBucketsSql = `
+  SELECT buckets.*, latest.latest, latest.quality
+  FROM buckets JOIN latest USING (sensor_id, unit, bucket)
+  ORDER BY sensor_id, unit, bucket`;
+
+const readHistorySql = `${historySourceSql}${historyBucketsSql}`;
+
+const readHistoryAnalyticsSql = `${historySourceSql},
+  statistics AS (
+    SELECT sensor_id, unit, min(value) AS minimum, max(value) AS maximum,
+      percentile_cont(ARRAY[0.25, 0.5, 0.75]) WITHIN GROUP (ORDER BY value) AS quartiles
+    FROM observations
+    GROUP BY sensor_id, unit
+  ), histogram_counts AS (
+    SELECT observations.sensor_id, observations.unit,
+      CASE WHEN statistics.minimum = statistics.maximum THEN 0
+        ELSE least(11, width_bucket(value, statistics.minimum, statistics.maximum, 12) - 1)
+      END AS bin, count(*) AS sample_count
+    FROM observations JOIN statistics USING (sensor_id, unit)
+    GROUP BY observations.sensor_id, observations.unit, bin
+  ), distributions AS (
+    SELECT statistics.sensor_id, statistics.unit, statistics.quartiles,
+      jsonb_agg(jsonb_build_object(
+        'minimum', statistics.minimum + (statistics.maximum - statistics.minimum) * bin / 12.0,
+        'maximum', CASE WHEN statistics.minimum = statistics.maximum THEN statistics.maximum
+          ELSE statistics.minimum + (statistics.maximum - statistics.minimum) * (bin + 1) / 12.0 END,
+        'count', coalesce(histogram_counts.sample_count, 0)
+      ) ORDER BY bin) AS histogram
+    FROM statistics
+    CROSS JOIN LATERAL generate_series(0,
+      CASE WHEN statistics.minimum = statistics.maximum THEN 0 ELSE 11 END
+    ) AS bins(bin)
+    LEFT JOIN histogram_counts USING (sensor_id, unit, bin)
+    GROUP BY statistics.sensor_id, statistics.unit, statistics.quartiles
+  )
+  SELECT buckets.*, latest.latest, latest.quality,
+    CASE WHEN row_number() OVER (PARTITION BY sensor_id, unit ORDER BY bucket) = 1
+      THEN distributions.quartiles END AS quartiles,
+    CASE WHEN row_number() OVER (PARTITION BY sensor_id, unit ORDER BY bucket) = 1
+      THEN distributions.histogram END AS histogram
+  FROM buckets JOIN latest USING (sensor_id, unit, bucket)
+  JOIN distributions USING (sensor_id, unit)
+  ORDER BY sensor_id, unit, bucket`;
 
 const readAcceptedCurrentStateSql = `
   SELECT *
@@ -439,6 +495,14 @@ function toSafeInteger(value, field) {
   return number;
 }
 
+function toFiniteNumber(value, field) {
+  const number = Number(value);
+  if (value === null || value === undefined || !Number.isFinite(number)) {
+    throw new Error(`PostgreSQL returned an invalid ${field}.`);
+  }
+  return number;
+}
+
 function toDecimalString(value, field) {
   const text = String(value);
   if (!/^[1-9][0-9]*$/.test(text)) {
@@ -488,18 +552,78 @@ function normalizeCurrentState(row) {
 function historyResponse(assetId, metric, from, to, maxPoints, bucketSeconds, rows) {
   const series = new Map();
   for (const row of rows) {
-    let entry = series.get(row.sensor_id);
+    const key = `${row.sensor_id}\0${row.unit}`;
+    let entry = series.get(key);
     if (!entry) {
-      entry = { sensor_id: row.sensor_id, unit: row.unit, points: [] };
-      series.set(row.sensor_id, entry);
+      entry = {
+        sensor_id: row.sensor_id,
+        unit: row.unit,
+        points: [],
+        summary: {
+          count: 0,
+          minimum: toFiniteNumber(row.minimum, 'history minimum'),
+          maximum: toFiniteNumber(row.maximum, 'history maximum'),
+          average: 0,
+          first_ts: toIsoString(row.first_ts, 'history first_ts'),
+          quality_counts: { good: 0, degraded: 0, unknown: 0 },
+          max_gap_seconds: 0,
+        },
+      };
+      series.set(key, entry);
     }
-    entry.points.push({
+    if (!['good', 'degraded', 'unknown'].includes(row.quality)) {
+      throw new Error('PostgreSQL returned an invalid history quality.');
+    }
+    const point = {
       ts: toIsoString(row.bucket, 'history bucket'),
-      average: Number(row.average),
-      minimum: Number(row.minimum),
-      maximum: Number(row.maximum),
+      first_ts: toIsoString(row.first_ts, 'history first_ts'),
+      last_ts: toIsoString(row.last_ts, 'history last_ts'),
+      average: toFiniteNumber(row.average, 'history average'),
+      minimum: toFiniteNumber(row.minimum, 'history minimum'),
+      maximum: toFiniteNumber(row.maximum, 'history maximum'),
       count: toSafeInteger(row.sample_count, 'history sample_count'),
-    });
+      latest: toFiniteNumber(row.latest, 'history latest'),
+      quality: row.quality,
+      quality_counts: {
+        good: toSafeInteger(row.good_count, 'history good_count'),
+        degraded: toSafeInteger(row.degraded_count, 'history degraded_count'),
+        unknown: toSafeInteger(row.unknown_count, 'history unknown_count'),
+      },
+      max_gap_seconds: toFiniteNumber(row.max_gap_seconds, 'history max_gap_seconds'),
+    };
+    entry.points.push(point);
+    const summary = entry.summary;
+    summary.count = toSafeInteger(summary.count + point.count, 'history total count');
+    summary.minimum = Math.min(summary.minimum, point.minimum);
+    summary.maximum = Math.max(summary.maximum, point.maximum);
+    summary.average += point.average * point.count;
+    summary.latest = point.latest;
+    summary.latest_ts = point.last_ts;
+    summary.last_ts = point.last_ts;
+    summary.quality = point.quality;
+    summary.max_gap_seconds = Math.max(summary.max_gap_seconds, point.max_gap_seconds);
+    for (const quality of ['good', 'degraded', 'unknown']) {
+      summary.quality_counts[quality] += point.quality_counts[quality];
+    }
+    if (row.quartiles !== undefined && row.quartiles !== null) {
+      if (
+        !Array.isArray(row.quartiles) ||
+        row.quartiles.length !== 3 ||
+        !Array.isArray(row.histogram)
+      ) {
+        throw new Error('PostgreSQL returned an invalid history distribution.');
+      }
+      summary.quartiles = row.quartiles.map((value) => toFiniteNumber(value, 'history quartile'));
+      summary.histogram = row.histogram.map((bin) => ({
+        minimum: toFiniteNumber(bin.minimum, 'history histogram minimum'),
+        maximum: toFiniteNumber(bin.maximum, 'history histogram maximum'),
+        count: toSafeInteger(bin.count, 'history histogram count'),
+      }));
+    }
+  }
+  for (const entry of series.values()) {
+    entry.summary.average /= entry.summary.count;
+    entry.summary.bucket_count = entry.points.length;
   }
   return {
     asset_id: assetId,
@@ -519,6 +643,7 @@ function parseHistoryRequest(url, assetId) {
   const to = new Date(url.searchParams.get('to') ?? '');
   const maxPointsText = url.searchParams.get('max_points') ?? '1200';
   const maxPoints = Number(maxPointsText);
+  const analytics = url.searchParams.get('analytics');
   if (
     !canonicalIdPattern.test(assetId) ||
     !canonicalIdPattern.test(metric) ||
@@ -529,7 +654,8 @@ function parseHistoryRequest(url, assetId) {
     !/^\d+$/.test(maxPointsText) ||
     !Number.isSafeInteger(maxPoints) ||
     maxPoints < 50 ||
-    maxPoints > 2000
+    maxPoints > 2000 ||
+    (analytics !== null && analytics !== 'true' && analytics !== 'false')
   ) {
     return null;
   }
@@ -542,6 +668,7 @@ function parseHistoryRequest(url, assetId) {
     from,
     to,
     maxPoints,
+    analytics: analytics === 'true',
     bucketSeconds: Math.max(1, Math.ceil(spanSeconds / (maxPoints - 1))),
   };
 }
@@ -930,14 +1057,17 @@ export function createHttpHandler({
         return;
       }
       try {
-        const { rows } = await query(readHistorySql, [
-          selection.assetId,
-          selection.metric,
-          selection.sensorId,
-          selection.from.toISOString(),
-          selection.to.toISOString(),
-          selection.bucketSeconds,
-        ]);
+        const { rows } = await query(
+          selection.analytics ? readHistoryAnalyticsSql : readHistorySql,
+          [
+            selection.assetId,
+            selection.metric,
+            selection.sensorId,
+            selection.from.toISOString(),
+            selection.to.toISOString(),
+            selection.bucketSeconds,
+          ]
+        );
         sendJson(
           response,
           200,

@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digital Twin Data Center</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body data-asset-id="dt-datacenter-rack">
+  <body data-asset-id="dt-datacenter-rack" data-electrical-device-id="shellyplugpmg3-48f6eebbf3f4">
     <div class="app-shell">
       <header class="app-bar">
         <div class="product-identity">
@@ -35,7 +36,7 @@
             >
           </p>
           <p class="app-state">
-            <span>Geometry</span>
+            <span>Assets</span>
             <strong class="status-value" data-status="geometry" data-tone="unknown"
               >Unavailable</strong
             >
@@ -130,19 +131,19 @@
           <section id="twin-browser" data-workspace-panel="twin" tabindex="-1">
             <section class="browser-group">
               <header>
-                <h3>Rack context</h3>
+                <h3>Rack Details</h3>
               </header>
               <dl class="browser-status-list">
                 <div>
-                  <dt>Target Physical Rack</dt>
-                  <dd>Not configured</dd>
+                  <dt>Rack Model</dt>
+                  <dd title="Physical model label unconfirmed">Nirax NR 9042</dd>
                 </div>
                 <div>
-                  <dt>Physical Registration</dt>
+                  <dt>Position Check</dt>
                   <dd class="status-value" data-tone="unknown">Unavailable</dd>
                 </div>
                 <div>
-                  <dt>Spatial Anchors</dt>
+                  <dt>Sensor Positions</dt>
                   <dd data-anchor-count>0 registered</dd>
                 </div>
               </dl>
@@ -195,23 +196,39 @@
                   />
                   <span>Electrical</span><small data-twin-summary="electrical">Not observed</small>
                 </label>
+                <label>
+                  <input
+                    class="spatial-metric-input"
+                    type="radio"
+                    name="twin-spatial-metric"
+                    value="telecommunications"
+                  />
+                  <span>Telecommunications</span
+                  ><small data-twin-summary="telecommunications">Not observed</small>
+                </label>
               </div>
+            </section>
+            <section class="browser-group">
+              <header><h3>Sources</h3></header>
+              <div id="twin-sources" class="twin-source-list"></div>
             </section>
             <section class="browser-group reference-scale-group">
               <div id="measurement-legend" class="measurement-legend" hidden>
                 <header>
-                  <strong id="legend-metric">Temperature</strong>
+                  <strong id="legend-metric">TEMP</strong><span class="legend-unit">°C</span>
                 </header>
                 <section
                   data-measurement-legend="temperature"
                   aria-label="Temperature visualization scale, degrees Celsius"
+                  title="Display colors: 10–40°C, clamped outside this range. ASHRAE A1–A4 recommended server inlet: 18–27°C. IBM x3250 M4 operating air: 10–35°C at 0–914.4 m altitude. Rack sensors may be at other locations; this is not a compliance assessment."
                 >
                   <div class="measurement-scale">
                     <div data-legend-gradient aria-hidden="true"></div>
                   </div>
                   <div class="legend-ticks" aria-hidden="true">
-                    <span>&lt;18</span><span>18</span><span>22.5</span><span>27</span
-                    ><span>&gt;27°C</span>
+                    <span data-scale-value="10">≤10</span><span data-scale-value="18">18</span>
+                    <span data-scale-value="27">27</span><span data-scale-value="35">35</span>
+                    <span data-scale-value="40">≥40</span>
                   </div>
                 </section>
                 <section
@@ -296,11 +313,11 @@
                 <span>Reference wiring</span>
               </header>
               <div id="asset-list" class="browser-list" aria-live="polite">
-                <p class="identity-row">ESP32-S3 DevKitC-1</p>
+                <p class="identity-row">Rack Controller</p>
                 <p class="identity-row">SHT31 A</p>
                 <p class="identity-row">SHT31 B</p>
                 <p class="identity-row">INMP441</p>
-                <p class="identity-row">Electrical Measurement Point</p>
+                <p class="identity-row">Rack Power</p>
               </div>
             </section>
             <section class="browser-group">
@@ -346,42 +363,65 @@
               </button>
               <button type="button" data-stream-filter="device" aria-pressed="false">Device</button>
             </nav>
+            <label class="stream-options"
+              >Source<select id="stream-source-filter">
+                <option value="">All sources</option>
+              </select></label
+            >
+            <label class="stream-options"
+              ><input id="stream-capabilities" type="checkbox" />Capabilities</label
+            >
           </section>
 
           <section id="analytics-workspace" data-workspace-panel="analytics" tabindex="-1" hidden>
             <header class="workspace-browser-header">
-              <p class="panel-kicker">Analytics</p>
-              <h2>Historical measurement context</h2>
-              <p id="analytics-browser-state">No historical series available</p>
+              <h2>Analytics</h2>
+              <p id="analytics-browser-state">Historical observations</p>
             </header>
-            <section class="browser-group">
-              <header>
-                <h3>Query context</h3>
-                <span>Canonical sources</span>
-              </header>
-              <dl class="browser-status-list">
-                <div>
-                  <dt>Metric</dt>
-                  <dd id="analytics-browser-metric">Not selected</dd>
-                </div>
-                <div>
-                  <dt>Asset</dt>
-                  <dd data-asset-context>Not configured</dd>
-                </div>
-                <div>
-                  <dt>Sensor / source</dt>
-                  <dd id="analytics-browser-source">Not observed</dd>
-                </div>
-                <div>
-                  <dt>Time range</dt>
-                  <dd id="analytics-browser-range">Unavailable</dd>
-                </div>
-                <div>
-                  <dt>Quality</dt>
-                  <dd>Not observed</dd>
-                </div>
-              </dl>
-            </section>
+            <form
+              id="history-query"
+              class="analytics-controls"
+              aria-label="Analytics query context"
+            >
+              <label
+                >Category<select id="history-category" aria-label="Historical category"></select
+              ></label>
+              <label
+                >Focus metric<select id="history-metric" aria-label="Historical metric"></select
+              ></label>
+              <label
+                >Asset<select id="history-asset" aria-label="Historical asset">
+                  <option value="">All observed assets</option>
+                </select></label
+              >
+              <label
+                >Sensor / source<select id="history-source" aria-label="Historical source">
+                  <option value="">All matching sources</option>
+                </select></label
+              >
+              <fieldset class="history-range" aria-label="Historical time range">
+                <legend>Time range</legend>
+                <button type="button" data-history-range="1h">1h</button>
+                <button type="button" data-history-range="6h">6h</button>
+                <button type="button" data-history-range="24h">24h</button>
+                <button type="button" data-history-range="5d" aria-pressed="true">5d</button>
+              </fieldset>
+              <label
+                >Aggregation<select id="history-aggregation" aria-label="Historical aggregation">
+                  <option value="average">Average · Min / Max extent</option>
+                  <option value="latest">Last observation per bucket</option>
+                  <option value="minimum">Minimum</option>
+                  <option value="maximum">Maximum</option>
+                </select></label
+              >
+              <label class="analytics-check"
+                ><input type="checkbox" id="history-absolute" />Absolute scale</label
+              >
+              <button type="button" id="history-live" aria-pressed="true">
+                Pause live updates
+              </button>
+              <p class="analytics-timezone">Asia/Jakarta · UTC+07:00</p>
+            </form>
           </section>
 
           <section id="event-browser" data-workspace-panel="events" tabindex="-1" hidden>
@@ -464,7 +504,7 @@
                 </div>
                 <div>
                   <dt>Network metrics</dt>
-                  <dd>Not observed</dd>
+                  <dd data-network-count>Not observed</dd>
                 </div>
               </dl>
             </section>
@@ -512,7 +552,7 @@
                     value="temperature"
                     checked
                   />
-                  <span>Temperature</span><small>degC</small>
+                  <span>Temperature</span><small>°C</small>
                 </label>
                 <label>
                   <input
@@ -521,7 +561,7 @@
                     name="mechanical-spatial-metric"
                     value="humidity"
                   />
-                  <span>Humidity</span><small>percent_rh</small>
+                  <span>Humidity</span><small>%RH</small>
                 </label>
                 <label>
                   <input
@@ -562,7 +602,7 @@
               <h2 id="geometry-heading" class="visually-hidden">Rack reference geometry</h2>
               <canvas
                 id="rack-canvas"
-                data-model-url="/models/rack.glb"
+                data-model-kind="rack"
                 aria-label="Interactive rack reference geometry; drag to orbit or pan and scroll to zoom"
                 aria-describedby="viewer-status spatial-layer-message"
               ></canvas>
@@ -574,7 +614,7 @@
                 </header>
                 <div class="domain-path" aria-label="Architecture registration context">
                   <p>
-                    <span>Reference model</span><strong>rack.glb</strong
+                    <span>Reference model</span><strong>42U rack</strong
                     ><small>Loaded geometry</small>
                   </p>
                   <p>
@@ -646,27 +686,12 @@
               </section>
 
               <div class="viewport-tools" aria-label="Viewport tools">
-                <button
-                  id="surface-mode"
-                  type="button"
-                  class="surface-mode-toggle"
-                  title="Contrast surface"
-                  aria-label="Surface mode"
-                  aria-pressed="false"
-                >
-                  <span class="surface-mode-track" aria-hidden="true">
-                    <span class="surface-mode-texture"></span>
-                    <span class="surface-mode-thumb"></span>
-                    <span class="surface-mode-contrast"></span>
-                  </span>
-                  <span>Surface</span>
-                </button>
                 <details class="layer-control">
                   <summary>Layers</summary>
                   <div class="layer-menu">
                     <label>
                       <input type="checkbox" data-layer="geometry" checked />
-                      <span>Geometry</span>
+                      <span>Assets</span>
                     </label>
                     <label>
                       <input type="checkbox" data-layer="anchors" checked />
@@ -676,9 +701,36 @@
                       <input type="checkbox" data-layer="zones" checked />
                       <span>Zones</span><small id="measurement-zone-state" hidden></small>
                     </label>
+                    <fieldset class="layer-group">
+                      <legend>View</legend>
+                      <label
+                        ><input id="rack-inspection" type="checkbox" checked /><span
+                          >Hide Covers</span
+                        ></label
+                      >
+                      <label title="Use the existing contrast surface mode"
+                        ><input id="surface-mode" type="checkbox" /><span>Surface</span></label
+                      >
+                    </fieldset>
+                    <fieldset class="layer-group">
+                      <legend>Effects</legend>
+                      <label
+                        title="Airflow direction is illustrative. Color reflects nearby fresh sensor readings; no airflow velocity is measured."
+                        ><input type="checkbox" data-layer="airflow" checked /><span
+                          >Airflow</span
+                        ></label
+                      >
+                      <label
+                        title="Sound activity based on microphone level (dBFS), not calibrated sound pressure or coverage."
+                        ><input type="checkbox" data-layer="soundWaves" checked /><span
+                          >Sound Waves</span
+                        ></label
+                      >
+                    </fieldset>
                   </div>
                 </details>
               </div>
+              <p id="sensor-effect-state" class="sensor-effect-state" aria-live="polite" hidden></p>
 
               <section class="spatial-layer-state" aria-live="polite">
                 <span id="spatial-layer-metric">Measurement context</span>
@@ -840,159 +892,74 @@
                       Electrical <span data-condition="electrical">Unknown</span>
                     </button>
                   </div>
-                  <svg
-                    class="hardware-schematic"
-                    viewBox="0 0 1000 560"
-                    role="group"
-                    aria-label="Configured hardware and live measurement flow"
-                  >
-                    <defs>
-                      <pattern
-                        id="schematic-grid"
-                        width="24"
-                        height="24"
-                        patternUnits="userSpaceOnUse"
-                      >
-                        <path d="M24 0H0V24" />
-                      </pattern>
-                    </defs>
-                    <rect width="1000" height="560" fill="url(#schematic-grid)" />
-                    <g class="schematic-rails" aria-hidden="true">
-                      <path class="trace trace-power" data-trace="power-3v3" d="M120 100H900" />
-                      <path
-                        class="trace trace-power"
-                        d="M215 100V135m285-35v90m295-90v45M140 100v255h20"
-                      />
-                      <path class="trace trace-ground" data-trace="power-gnd" d="M120 490H900" />
-                      <path class="trace trace-ground" d="M215 425v65m285-110v110m355-245h25v245" />
-                      <text x="124" y="88">3V3</text>
-                      <text x="124" y="514">GND</text>
-                    </g>
-                    <g class="schematic-buses" aria-hidden="true">
-                      <path class="trace trace-signal" data-trace="i2c0" d="M270 185V240H430" />
-                      <path class="trace trace-signal" data-trace="i2c1" d="M270 375V300H430" />
-                      <path class="trace trace-signal" data-trace="i2s0" d="M735 195V270H570" />
-                      <path class="trace trace-logical" data-trace="transport" d="M570 330H735" />
-                      <path
-                        class="trace trace-electrical"
-                        data-trace="electrical"
-                        d="M735 385H680"
-                      />
-                      <text x="318" y="225">I²C0</text>
-                      <text x="318" y="320">I²C1</text>
-                      <text x="640" y="250">I²S0</text>
-                      <text x="625" y="318">Wi-Fi / MQTT</text>
-                      <text x="590" y="407">Rack observation</text>
-                    </g>
-                    <g
-                      class="schematic-node"
-                      role="button"
+                  <section class="schematic-viewport" aria-label="Reference Wiring">
+                    <header class="schematic-toolbar">
+                      <strong>Reference Wiring</strong>
+                      <span data-schematic-status>Physical connections · no signal simulation</span>
+                      <nav aria-label="Schematic view controls">
+                        <button type="button" data-schematic-action="fit">Fit to view</button>
+                        <button
+                          type="button"
+                          data-schematic-action="in"
+                          aria-label="Zoom in schematic"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          data-schematic-action="out"
+                          aria-label="Zoom out schematic"
+                        >
+                          −
+                        </button>
+                        <button type="button" data-schematic-action="reset">Reset view</button>
+                        <button
+                          type="button"
+                          data-schematic-action="fullscreen"
+                          aria-pressed="false"
+                        >
+                          Fullscreen
+                        </button>
+                      </nav>
+                    </header>
+                    <svg
+                      class="hardware-schematic"
+                      viewBox="0 0 1200 980"
+                      role="group"
                       tabindex="0"
-                      data-hardware-node="esp32-s3"
-                    >
-                      <path class="board-edge" d="M436 196h140v190H436z" />
-                      <rect class="board-pcb" x="430" y="190" width="140" height="190" rx="5" />
-                      <rect class="board-shield" x="453" y="216" width="94" height="95" rx="2" />
-                      <rect class="symbol-chip" x="465" y="240" width="70" height="48" rx="2" />
-                      <path
-                        class="pin-header"
-                        d="M440 206v158m120-158v158M432 210h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m112-128h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16m-16 16h16"
-                      />
-                      <path class="usb-shell" d="M478 190v-13h44v13m-40-5h36" />
-                      <circle class="board-hole" cx="448" cy="202" r="3" />
-                      <circle class="board-hole" cx="552" cy="368" r="3" />
-                      <text x="500" y="265" text-anchor="middle">ESP32-S3</text>
-                      <text class="symbol-caption" x="500" y="343" text-anchor="middle">
-                        N16R8 · USB
-                      </text>
-                    </g>
-                    <g
-                      class="schematic-node"
-                      role="button"
-                      tabindex="0"
-                      data-hardware-node="sht31-a"
-                    >
-                      <path class="board-edge" d="M165 140h110v100H165z" />
-                      <rect class="board-pcb" x="160" y="135" width="110" height="100" rx="5" />
-                      <circle class="board-hole" cx="174" cy="149" r="4" />
-                      <circle class="board-hole" cx="256" cy="149" r="4" />
-                      <rect class="sensor-package" x="195" y="161" width="40" height="33" rx="2" />
-                      <path class="sensor-vent" d="M203 170h24m-24 6h24m-24 6h24" />
-                      <path
-                        class="pin-header"
-                        d="M176 203h78m-68-5v10m14-10v10m14-10v10m14-10v10m14-10v10m12-10v10"
-                      />
-                      <text x="215" y="216" text-anchor="middle">SHT31 A</text>
-                    </g>
-                    <g
-                      class="schematic-node"
-                      role="button"
-                      tabindex="0"
-                      data-hardware-node="sht31-b"
-                    >
-                      <path class="board-edge" d="M165 330h110v100H165z" />
-                      <rect class="board-pcb" x="160" y="325" width="110" height="100" rx="5" />
-                      <circle class="board-hole" cx="174" cy="339" r="4" />
-                      <circle class="board-hole" cx="256" cy="339" r="4" />
-                      <rect class="sensor-package" x="195" y="351" width="40" height="33" rx="2" />
-                      <path class="sensor-vent" d="M203 360h24m-24 6h24m-24 6h24" />
-                      <path
-                        class="pin-header"
-                        d="M176 393h78m-68-5v10m14-10v10m14-10v10m14-10v10m14-10v10m12-10v10"
-                      />
-                      <text x="215" y="406" text-anchor="middle">SHT31 B</text>
-                    </g>
-                    <g
-                      class="schematic-node"
-                      role="button"
-                      tabindex="0"
-                      data-hardware-node="inmp441"
-                    >
-                      <path class="board-edge" d="M740 150h120v100H740z" />
-                      <rect class="board-pcb" x="735" y="145" width="120" height="100" rx="5" />
-                      <rect class="mic-can" x="771" y="156" width="48" height="48" rx="4" />
-                      <circle class="symbol-port" cx="795" cy="180" r="11" />
-                      <path
-                        class="pin-header"
-                        d="M748 217h94m-84-5v10m16-10v10m16-10v10m16-10v10m16-10v10m16-10v10"
-                      />
-                      <text x="795" y="224" text-anchor="middle">INMP441</text>
-                    </g>
-                    <g
-                      class="schematic-node"
-                      role="button"
-                      tabindex="0"
-                      data-hardware-node="electrical"
-                    >
-                      <circle class="meter-ring" cx="795" cy="385" r="55" />
-                      <path
-                        class="meter-probe"
-                        d="M753 385h20l10-22 18 44 12-22h22m-40-47v-15m-20 61h-15"
-                      />
-                      <text class="meter-unit" x="795" y="354" text-anchor="middle">V · A · W</text>
-                      <text x="795" y="468" text-anchor="middle">Electrical point</text>
-                    </g>
-                    <g class="live-values" aria-live="polite">
-                      <text x="285" y="175" data-hardware-value="sht31-a">Not observed</text>
-                      <text x="285" y="365" data-hardware-value="sht31-b">Not observed</text>
-                      <text x="700" y="138" data-hardware-value="inmp441">Not observed</text>
-                      <text x="700" y="455" data-hardware-value="electrical">Not observed</text>
-                      <text x="700" y="471" data-hardware-secondary="electrical">Not observed</text>
-                      <text x="500" y="408" text-anchor="middle" data-hardware-value="esp32-s3">
-                        Not observed
-                      </text>
-                      <text x="285" y="191" data-hardware-power="sht31-a">Not instrumented</text>
-                      <text x="285" y="381" data-hardware-power="sht31-b">Not instrumented</text>
-                      <text x="700" y="256" data-hardware-power="inmp441">Not instrumented</text>
-                      <text x="500" y="425" text-anchor="middle" data-hardware-power="esp32-s3">
-                        Not instrumented
-                      </text>
-                    </g>
-                  </svg>
-                  <div class="hardware-legend" aria-label="Schematic legend">
-                    <span><i data-kind="power"></i>Power reference</span>
-                    <span><i data-kind="data"></i>Active data</span>
-                    <span><i data-kind="logical"></i>Logical</span>
+                      aria-label="Physical ESP32 sensor wiring; drag to pan, arrows to move, plus or minus to zoom"
+                    ></svg>
+                    <div class="hardware-legend" aria-label="Schematic legend">
+                      <span><i data-kind="power"></i>3V3 nominal</span>
+                      <span><i data-kind="ground"></i>GND</span>
+                      <span><i data-kind="i2c0"></i>I2C0</span>
+                      <span><i data-kind="i2c1"></i>I2C1</span>
+                      <span><i data-kind="i2s0"></i>I2S · SD → GPIO6</span>
+                      <span><i data-kind="logical"></i>Network only</span>
+                    </div>
+                  </section>
+                  <div class="hardware-readings" aria-label="Last observed hardware measurements">
+                    <div>
+                      <span>SHT31 A</span
+                      ><strong data-hardware-value="sht31-a">Not observed</strong>
+                    </div>
+                    <div>
+                      <span>SHT31 B</span
+                      ><strong data-hardware-value="sht31-b">Not observed</strong>
+                    </div>
+                    <div>
+                      <span>INMP441</span
+                      ><strong data-hardware-value="inmp441">Not observed</strong>
+                    </div>
+                    <div>
+                      <span>Rack Controller diagnostics</span
+                      ><strong data-hardware-value="esp32-s3">Not observed</strong>
+                    </div>
+                    <div>
+                      <span>Rack Power</span
+                      ><strong data-hardware-value="electrical">Not observed</strong
+                      ><small data-hardware-secondary="electrical"></small>
+                    </div>
                   </div>
                 </section>
 
@@ -1012,6 +979,10 @@
                   <section class="current-diagnostics">
                     <h4>Current diagnostics</h4>
                     <dl data-hardware-diagnostics></dl>
+                  </section>
+                  <section class="hardware-observations">
+                    <h4>Last observations</h4>
+                    <dl data-hardware-observations></dl>
                   </section>
                   <section class="hardware-specification">
                     <h4>Manufacturer reference</h4>
@@ -1045,59 +1016,39 @@
                 <div id="stream-registry-body" class="registry-table-body" role="rowgroup">
                   <div class="registry-empty">
                     <strong>No canonical records observed</strong>
-                    <p>Sources remain Not observed, not zero.</p>
                   </div>
                 </div>
               </div>
             </section>
 
             <section class="analytics-workspace-surface" data-workspace-surface="analytics" hidden>
-              <header class="surface-header">
-                <div>
-                  <p class="panel-kicker">Analytics</p>
-                  <h2>Historical measurement analysis</h2>
-                </div>
-                <span id="analytics-history-state">Select a metric</span>
+              <header class="analytics-dashboard-header">
+                <h2 id="analytics-title">Mechanical</h2>
+                <span id="analytics-history-state" role="status">Loading history…</span>
               </header>
-              <form
-                id="history-query"
-                class="analysis-context"
-                aria-label="Analytics query context"
-              >
-                <label>
-                  <span>Metric</span>
-                  <select id="history-metric" aria-label="Historical metric">
-                    <option value="">Select metric</option>
-                  </select>
-                </label>
-                <p><span>Asset</span><strong data-asset-context>Not configured</strong></p>
-                <label>
-                  <span>Sensor / source</span>
-                  <select id="history-source" aria-label="Historical source">
-                    <option value="">All matching sources</option>
-                  </select>
-                </label>
-                <fieldset class="history-range" aria-label="Historical time range">
-                  <legend>Time range</legend>
-                  <button type="button" data-history-range="1h">1h</button>
-                  <button type="button" data-history-range="6h">6h</button>
-                  <button type="button" data-history-range="24h">24h</button>
-                  <button type="button" data-history-range="5d" aria-pressed="true">5d</button>
-                </fieldset>
-                <p><span>Aggregation</span><strong>Average · Min · Max</strong></p>
-              </form>
-              <section class="chart-workspace" aria-labelledby="analysis-chart-heading">
-                <header>
-                  <h3 id="analysis-chart-heading">Measurement history</h3>
-                  <span>Canonical series</span>
-                </header>
-                <div id="analytics-history-chart" class="chart-frame history-chart">
-                  <div class="chart-empty">
-                    <strong>Select a canonical metric</strong>
-                    <p>
-                      History is queried from PostgreSQL; no values are generated in the browser.
-                    </p>
-                  </div>
+              <div
+                id="analytics-current"
+                class="analytics-current"
+                aria-label="Last observed measurements"
+              ></div>
+              <div id="analytics-dashboard" class="analytics-dashboard"></div>
+              <section class="analytics-statistics" aria-label="Historical statistics">
+                <h3>Range statistics</h3>
+                <div class="analytics-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Measurement / source</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Average</th>
+                        <th>Latest</th>
+                        <th>Observations</th>
+                        <th>Observed interval</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analytics-statistics-body"></tbody>
+                  </table>
                 </div>
               </section>
             </section>
@@ -1113,7 +1064,7 @@
               <section class="surface-summary" aria-label="Event source summary">
                 <p><span>Observed records</span><strong>0</strong></p>
                 <p><span>Canonical source</span><strong>Unavailable</strong></p>
-                <p><span>Synthetic derivation</span><strong>Disabled</strong></p>
+                <p><span>Event policy</span><strong>Not configured</strong></p>
               </section>
               <div class="event-table" role="table" aria-label="Operational events">
                 <div class="event-table-head" role="row">
@@ -1123,10 +1074,6 @@
                 </div>
                 <div class="event-empty">
                   <strong>No canonical operational events observed</strong>
-                  <p>
-                    Current measurements and connection state are not converted into synthetic
-                    events.
-                  </p>
                 </div>
               </div>
             </section>
@@ -1186,7 +1133,13 @@
                     >Not observed</strong
                   >
                 </p>
-                <p><span>Network metrics</span><strong>Not observed</strong></p>
+                <p><span>Network metrics</span><strong data-network-count>Not observed</strong></p>
+                <p>
+                  <span>Host monitoring</span>
+                  <a href="http://127.0.0.1:9090/" target="_blank" rel="noopener"
+                    >Windows Exporter / Prometheus</a
+                  >
+                </p>
               </section>
               <section class="domain-history" aria-label="Telecommunications history">
                 <article data-history-metric="net_receive_throughput_bytes_per_second">
@@ -1228,9 +1181,9 @@
               <header class="surface-header">
                 <div>
                   <p class="panel-kicker">Electrical</p>
-                  <h2>Electrical model and instrumentation boundary</h2>
+                  <h2>Electrical measurements</h2>
                 </div>
-                <span>Observed measurements · None</span>
+                <span data-electrical-count>Not observed</span>
               </header>
               <div class="electrical-schematic" aria-label="Electrical instrumentation state">
                 <span class="schematic-caption">Known system boundary</span>
@@ -1239,9 +1192,9 @@
                   ><small>Topology not modeled</small>
                 </article>
                 <div class="schematic-link" aria-hidden="true"></div>
-                <article class="instrumentation-unavailable">
-                  <span>Measurement boundary</span><strong>Measurement source unavailable</strong
-                  ><small>Not configured</small>
+                <article>
+                  <span>Measurement source</span><strong>Rack Power</strong
+                  ><small>Monitoring only · S3PL-30116EU</small>
                 </article>
               </div>
               <dl class="domain-facts">
@@ -1251,15 +1204,15 @@
                 </div>
                 <div>
                   <dt>Measurement source</dt>
-                  <dd>Not configured</dd>
+                  <dd>Rack Power</dd>
                 </div>
                 <div>
                   <dt>Observed measurements</dt>
-                  <dd>None</dd>
+                  <dd data-electrical-count>Not observed</dd>
                 </div>
                 <div>
                   <dt>Power instrumentation</dt>
-                  <dd>Unavailable</dd>
+                  <dd data-electrical-observation>Not observed</dd>
                 </div>
               </dl>
               <section class="domain-history" aria-label="Electrical history">
@@ -1272,7 +1225,7 @@
                   <div class="history-chart"></div>
                 </article>
                 <article data-history-metric="active_power_w">
-                  <h3>Active power</h3>
+                  <h3>Active Power</h3>
                   <div class="history-chart"></div>
                 </article>
                 <article data-history-metric="power_factor_ratio">
@@ -1284,7 +1237,11 @@
                   <div class="history-chart"></div>
                 </article>
                 <article data-history-metric="energy_wh_total">
-                  <h3>Cumulative energy</h3>
+                  <h3>Active Energy</h3>
+                  <div class="history-chart"></div>
+                </article>
+                <article data-history-metric="returned_energy_wh_total">
+                  <h3>Returned Energy</h3>
                   <div class="history-chart"></div>
                 </article>
               </section>

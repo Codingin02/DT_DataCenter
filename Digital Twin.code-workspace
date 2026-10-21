@@ -1,0 +1,58 @@
+{
+  "folders": [
+    { "name": "Digital Twin Data Center", "path": "." },
+    {
+      "name": "ESP32 Firmware",
+      "path": "../IOT ESP32 Project/Digital Twin Data Center/DT_DataCenter",
+    },
+    { "name": "Windows Launchers", "path": "D:/Tools/Digital_Twin/Scripts" },
+  ],
+  "settings": {},
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Start Digital Twin",
+        "type": "process",
+        "command": "powershell.exe",
+        "args": [
+          "-NoLogo",
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "D:/Tools/Digital_Twin/Scripts/Start-DigitalTwin.ps1",
+        ],
+        "problemMatcher": [],
+        "runOptions": { "instanceLimit": 1 },
+      },
+      {
+        "label": "Stop Digital Twin",
+        "type": "process",
+        "command": "powershell.exe",
+        "args": [
+          "-NoLogo",
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "D:/Tools/Digital_Twin/Scripts/Stop-DigitalTwin.ps1",
+        ],
+        "problemMatcher": [],
+        "runOptions": { "instanceLimit": 1 },
+      },
+      {
+        "label": "Open Digital Twin",
+        "type": "process",
+        "command": "powershell.exe",
+        "args": [
+          "-NoLogo",
+          "-NoProfile",
+          "-Command",
+          "Start-Process 'http://127.0.0.1:3010/#twin-workspace'",
+        ],
+        "problemMatcher": [],
+      },
+    ],
+  },
+}

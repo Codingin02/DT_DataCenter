@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 import { connectAsync } from 'mqtt';
+import { assertProducerRetired } from './acceptance-data.js';
 
 const SITE_ID = 'dt-datacenter';
 const ASSET_ID = 'dt-datacenter-rack';
@@ -12,9 +13,19 @@ const PREFIX = 'DT_PROTEUS ';
 const DEVICES = ['acceptance-mechanical-a', 'acceptance-mechanical-b', 'acceptance-acoustic'];
 
 const SOURCES = {
-  temperatureA: ['acceptance-mechanical-a', 'acceptance-sht31-a-temperature', 'temperature', 'degC'],
+  temperatureA: [
+    'acceptance-mechanical-a',
+    'acceptance-sht31-a-temperature',
+    'temperature',
+    'degC',
+  ],
   humidityA: ['acceptance-mechanical-a', 'acceptance-sht31-a-humidity', 'humidity', 'percent_rh'],
-  temperatureB: ['acceptance-mechanical-b', 'acceptance-sht31-b-temperature', 'temperature', 'degC'],
+  temperatureB: [
+    'acceptance-mechanical-b',
+    'acceptance-sht31-b-temperature',
+    'temperature',
+    'degC',
+  ],
   humidityB: ['acceptance-mechanical-b', 'acceptance-sht31-b-humidity', 'humidity', 'percent_rh'],
   rms: ['acceptance-acoustic', 'acceptance-inmp441-rms', 'sound_rms_dbfs', 'dBFS'],
   peak: ['acceptance-acoustic', 'acceptance-inmp441-peak', 'sound_peak_dbfs', 'dBFS'],
@@ -113,7 +124,11 @@ function crc(bytes) {
 }
 
 function decodeSht31(bytes) {
-  if (!Array.isArray(bytes) || bytes.length !== 6 || bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255))
+  if (
+    !Array.isArray(bytes) ||
+    bytes.length !== 6 ||
+    bytes.some((byte) => !Number.isInteger(byte) || byte < 0 || byte > 255)
+  )
     throw new Error('Invalid SHT31 byte frame');
   if (crc(bytes.slice(0, 2)) !== bytes[2] || crc(bytes.slice(3, 5)) !== bytes[5])
     throw new Error('SHT31 CRC mismatch');
@@ -131,7 +146,9 @@ function decodePcm(samples) {
   if (
     !Array.isArray(samples) ||
     samples.length === 0 ||
-    samples.some((sample) => !Number.isInteger(sample) || sample < -(2 ** 23) || sample > FULL_SCALE_24_BIT)
+    samples.some(
+      (sample) => !Number.isInteger(sample) || sample < -(2 ** 23) || sample > FULL_SCALE_24_BIT
+    )
   )
     throw new Error('Invalid signed 24-bit PCM frame');
   const rms = Math.sqrt(samples.reduce((sum, sample) => sum + sample ** 2, 0) / samples.length);
@@ -175,8 +192,10 @@ function selfTest() {
   const decoded = decodeFrame(
     `${PREFIX}{"kind":"telemetry","seq":0,"state":0,"sht31_a":[98,3,94,128,0,162],"sht31_b":[96,140,211,122,225,164],"pcm":[5913726,-5913726,2956863,-2956863,0,1478431,-1478431,0]}`
   );
-  if (Math.abs(decoded.sensorA.temperature - 22.001221) > 0.000001) throw new Error('Temperature conversion failed');
-  if (Math.abs(decoded.sensorB.humidity - 48.000305) > 0.000001) throw new Error('Humidity conversion failed');
+  if (Math.abs(decoded.sensorA.temperature - 22.001221) > 0.000001)
+    throw new Error('Temperature conversion failed');
+  if (Math.abs(decoded.sensorB.humidity - 48.000305) > 0.000001)
+    throw new Error('Humidity conversion failed');
   if (measurements(decoded).length !== 6) throw new Error('Measurement mapping failed');
   console.log('self-test: PASS');
 }
@@ -186,7 +205,13 @@ async function publishStatus(client, bootId, status) {
     DEVICES.map((deviceId) =>
       client.publishAsync(
         `dt/${SITE_ID}/device/${deviceId}/status`,
-        JSON.stringify({ schema_version: '1.0', site_id: SITE_ID, device_id: deviceId, boot_id: bootId, status }),
+        JSON.stringify({
+          schema_version: '1.0',
+          site_id: SITE_ID,
+          device_id: deviceId,
+          boot_id: bootId,
+          status,
+        }),
         { qos: 1, retain: true }
       )
     )
@@ -194,6 +219,7 @@ async function publishStatus(client, bootId, status) {
 }
 
 async function main() {
+  assertProducerRetired('live');
   loadEnvironment();
   const broker = process.env.MQTT_URL ?? 'mqtt://127.0.0.1:1883';
   const bootId = `proteus-${randomUUID()}`;
@@ -205,16 +231,22 @@ async function main() {
     username: process.env.MQTT_USERNAME,
   });
   const encodedReader = Buffer.from(POWERSHELL_READER, 'utf16le').toString('base64');
-  const reader = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodedReader], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  const reader = spawn(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodedReader],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  );
   const lines = createInterface({ input: reader.stdout });
   let published = 0;
   let queue = Promise.resolve();
   let stopping = false;
 
   await publishStatus(client, bootId, 'online');
-  console.log(JSON.stringify({ event: 'ready', boot_id: bootId, source: 'Proteus uPython debug console' }));
+  console.log(
+    JSON.stringify({ event: 'ready', boot_id: bootId, source: 'Proteus uPython debug console' })
+  );
 
   lines.on('line', (line) => {
     if (!line.startsWith(PREFIX)) return;
@@ -243,13 +275,25 @@ async function main() {
           await client.publishAsync(topic, JSON.stringify(payload), { qos: 1 });
           published += 1;
           if (published <= 6 || decoded.frame.state !== 0)
-            console.log(JSON.stringify({ event: 'published', proteus_seq: decoded.frame.seq, state: decoded.frame.state, topic, payload }));
+            console.log(
+              JSON.stringify({
+                event: 'published',
+                proteus_seq: decoded.frame.seq,
+                state: decoded.frame.state,
+                topic,
+                payload,
+              })
+            );
         }
       })
-      .catch((error) => console.error(JSON.stringify({ event: 'frame_rejected', message: error.message })));
+      .catch((error) =>
+        console.error(JSON.stringify({ event: 'frame_rejected', message: error.message }))
+      );
   });
   reader.stderr.on('data', (chunk) => process.stderr.write(chunk));
-  reader.on('error', (error) => console.error(JSON.stringify({ event: 'reader_error', message: error.message })));
+  reader.on('error', (error) =>
+    console.error(JSON.stringify({ event: 'reader_error', message: error.message }))
+  );
   reader.on('exit', (code) => {
     if (!stopping) console.error(JSON.stringify({ event: 'reader_exit', code }));
   });
@@ -269,7 +313,8 @@ async function main() {
 }
 
 if (process.argv.includes('--self-test')) selfTest();
-else main().catch((error) => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+else
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });

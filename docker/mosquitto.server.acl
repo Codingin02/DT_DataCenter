@@ -1,0 +1,8 @@
+topic readwrite dt/campus-lab/telemetry/+/+/+
+topic readwrite dt/campus-lab/device/+/status
+topic readwrite dt/healthcheck
+topic readwrite shellyplugpmg3-48f6eebbf3f4/status/+
+topic readwrite shellyplugpmg3-48f6eebbf3f4/events/rpc
+topic readwrite shellyplugpmg3-48f6eebbf3f4/online
+topic readwrite shellyplugpmg3-48f6eebbf3f4/rpc
+topic readwrite dt-r1-local-backend/shelly/rpc

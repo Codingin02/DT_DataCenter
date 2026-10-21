@@ -1508,7 +1508,13 @@ async function openMetrics(pool) {
   console.log('# EOF');
 }
 
+export function assertProducerRetired(command) {
+  if (['populate', 'backfill', 'live', 'openmetrics'].includes(command))
+    throw new Error('Synthetic producers are retired; physical hardware owns telemetry.');
+}
+
 async function runInContainer() {
+  assertProducerRetired(process.argv[2]);
   const { default: pg } = await import('pg');
   const pool = new pg.Pool();
   try {
@@ -1555,6 +1561,7 @@ function serviceContainer(project, service) {
 
 async function runFromHost() {
   const command = process.argv[2];
+  assertProducerRetired(command);
   if (
     ![
       'populate',

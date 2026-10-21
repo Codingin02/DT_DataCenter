@@ -13,6 +13,7 @@ firmware/**/build/
 firmware/**/sdkconfig
 firmware/**/sdkconfig.old
 mqtt/passwd
+docker/private/
 assets/3d/photos/
 assets/3d/realityscan/
 assets/3d/source/

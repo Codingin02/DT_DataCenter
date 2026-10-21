@@ -274,11 +274,54 @@
     {
       "properties": {
         "metric": {
-          "const": "energy_wh_total"
+          "enum": ["energy_wh_total", "returned_energy_wh_total"]
         },
         "unit": {
           "const": "Wh"
         },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": { "const": "wifi_rssi_dbm" },
+        "unit": { "const": "dBm" },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": { "const": "device_temperature_c" },
+        "unit": { "const": "degC" },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": {
+          "enum": [
+            "ram_size_bytes",
+            "ram_free_bytes",
+            "ram_min_free_bytes",
+            "fs_size_bytes",
+            "fs_free_bytes"
+          ]
+        },
+        "unit": { "const": "bytes" },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": { "enum": ["mqtt_connected", "wifi_connected", "restart_required"] },
+        "unit": { "const": "ratio" },
+        "raw_value": false
+      }
+    },
+    {
+      "properties": {
+        "metric": { "enum": ["reset_reason", "pm1_error_count", "pm1_flag_count"] },
+        "unit": { "const": "count" },
         "raw_value": false
       }
     }

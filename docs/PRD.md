@@ -1,11 +1,12 @@
-# DT_DataCenter — Canonical PRD for Codex
+# Digital Twin Data Center — Product Requirements
 
-**Project:** DT_DataCenter
-**Physical object:** One lower-environment rack in the Data Center, Laboratorium Sistem Cerdas
+**Project:** Digital Twin Data Center
+**Internal identifier:** DT_DataCenter
+**Physical object:** One lower-environment rack
 **Document role:** Product and implementation contract for Codex
 **Repository root:** `E:\Projects\Digital_Twin`
 **Canonical PRD path:** `E:\Projects\Digital_Twin\docs\PRD.md`
-**Current maturity target:** R1 Representation only
+**Current scope:** Physical acquisition, monitoring, historical analytics, and deployment
 **Current data direction:** Physical → Virtual
 **Out of current scope:** R2 Replication, R3 Reality, R4 Relational
 **Status:** Canonical current-scope requirements
@@ -14,7 +15,7 @@
 
 ## 0. How Codex MUST use this document
 
-This file defines what `DT_DataCenter` MUST become.
+This file defines the requirements of Digital Twin Data Center. `DT_DataCenter` is its internal identifier, not alternate branding.
 
 `AGENTS.md` defines repository execution rules.
 `docs/PRD.md` defines product scope, architecture, contracts, acceptance criteria, and explicit non-goals.
@@ -25,7 +26,7 @@ Codex MUST NOT silently reinterpret, expand, or "future-proof" the project beyon
 
 Codex MUST NOT replace a locked decision because another technology is newer, more popular, or more familiar.
 
-Codex MUST preserve the project as a staged Digital Twin of the Data Center in Laboratorium Sistem Cerdas, not as a generic IoT dashboard and not as a generic 3D viewer.
+Codex MUST preserve Digital Twin Data Center as the existing operational physical system. Product branding MUST NOT append classifications, institutional framing, or context from other projects.
 
 ---
 
@@ -48,10 +49,10 @@ A `TBD` is not permission to guess.
 
 ## 2. Product vision
 
-`DT_DataCenter` MUST create a validated R1 virtual representation of the physical Data Center in Laboratorium Sistem Cerdas using real empirical data.
+Digital Twin Data Center MUST represent its physical rack and measured state using real acquisition, canonical telemetry, and traceable observations.
 
 The active physical scope is one rack in the lower rack/server environment. The upper
-server is reserved for supervisor research and is outside every discovery, test,
+server is outside every discovery, test,
 deployment, configuration, and monitoring action performed by this project.
 
 The system MUST combine:
@@ -65,7 +66,7 @@ The system MUST combine:
 - traceability from a digital value back to its physical source;
 - physical-to-digital verification evidence.
 
-The current project is R1 Representation only. Its data direction is:
+The operational data direction is:
 
 ```text
 PHYSICAL ─────────────────────────────► VIRTUAL
@@ -73,9 +74,9 @@ PHYSICAL ───────────────────────�
 
 ---
 
-## 3. Academic foundation: the 4R framework
+## 3. Representation terminology
 
-The project follows the staged Digital Twin capability framework:
+The following framework is retained as reference terminology, not project identity or a requirement to build further capabilities:
 
 ```text
 Representation → Replication → Reality → Relational
@@ -83,7 +84,7 @@ Representation → Replication → Reality → Relational
 
 The levels increase in capability, complexity, and development effort.
 
-The current thesis/project implementation is intentionally limited to the first level.
+The active scope is the physical monitoring and analysis system described here. The R1 references below describe representation requirements, not an additional product classification.
 
 ### 3.1 R1 Representation
 
@@ -104,14 +105,14 @@ A beautiful GLB without real identity, coordinates, physical telemetry, and trac
 
 ---
 
-## 4. Mandatory advisor directives translated into project requirements
+## 4. Physical system requirements
 
-1. The physical object is one lower-environment rack in the Data Center, Laboratorium Sistem Cerdas; the upper server is no-touch.
-2. The active maturity is R1 Representation only.
+1. The physical object is one lower-environment rack; the upper server is no-touch.
+2. The active scope is physical acquisition, monitoring, historical analytics, and deployment.
 3. The current implementation is one-way physical → virtual.
 4. The real physical space MUST be reconstructed into a 3D counterpart and connected to real data for acceptance.
 5. Mechanical acquisition and communication use an ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8; the physical marking remains unverified.
-6. Temperature and humidity use two DFRobot Fermion SEN0331 modules with Sensirion SHT31-DIS-B over separate 100 kHz I2C controllers.
+6. Temperature and humidity use two DFRobot Fermion SEN0331 modules with Sensirion SHT31-DIS-B over separate I2C controllers currently configured at 50 kHz by the active sketch.
 7. Sensor A uses I2C0 on SDA GPIO8/SCL GPIO9; sensor B uses I2C1 on SDA GPIO10/SCL GPIO11. Both use high-repeatability measurements at approximately 1 Hz with mandatory CRC validation.
 8. Sound acquisition uses the INMP441 digital I2S MEMS microphone with a 24-bit source and 48 kHz target.
 9. ESP32-S3 owns acquisition, validation, conversion, acoustic processing, Wi-Fi, and MQTT. The ESP32 ADC is not used for these digital sensors.
@@ -129,7 +130,7 @@ A beautiful GLB without real identity, coordinates, physical telemetry, and trac
 The canonical project name is:
 
 ```text
-DT_DataCenter
+Digital Twin Data Center
 ```
 
 The project root is:
@@ -168,10 +169,10 @@ Canonical site identity MAY use a stable machine-friendly identifier such as:
 lab-sc
 ```
 
-but the human-readable physical site remains:
+but site identity MUST remain separate from product branding. The human-readable product name is:
 
 ```text
-Data Center — Laboratorium Sistem Cerdas
+Digital Twin Data Center
 ```
 
 ---
@@ -326,7 +327,7 @@ Codex MUST instead consume approved artifacts produced by the manual workflow.
 
 ### 10.1 Manual-to-Codex 3D handoff contract
 
-Before a 3D model becomes a runtime candidate, the operator SHOULD provide:
+The existing operational model is one procedural Three.js rack. For an optional imported model, the operator SHOULD provide:
 
 ```text
 approved runtime-candidate GLB
@@ -372,7 +373,7 @@ VS Code is the working editor, but this PRD is not a VS Code tutorial.
 
 The fixed hardware and digital interfaces are defined in the sensor hardware policy and hardware-role contract below. `docs/contracts/foundation.md` preserves the hardware-neutral identity and telemetry mapping.
 
-`firmware/esp32s3_datacenter` is the active ESP-IDF project. It targets ESP32-S3 and contains direct dual-SHT31 acquisition, bounded INMP441 I2S acquisition, the one-second measurement runtime, local DC-removed RMS/peak diagnostic dBFS processing, Wi-Fi station transport, MQTT QoS-1 publication, retained device status, Last Will, and SNTP-backed source time. Physical operation, network provisioning, clock accuracy, and acoustic calibration remain unverified.
+The active firmware authority is `E:\Projects\IOT ESP32 Project\Digital Twin Data Center\DT_DataCenter\DT_DataCenter.ino`. It uses the Arduino ESP32 toolchain, direct dual-SHT31 acquisition, ESP_I2S capture, RMS/Peak dBFS processing, ESP-MQTT QoS 1, retained device status, Last Will, and SNTP-backed source time. Preserve its private `local_config.h` and USB/NVS provisioning. `firmware/esp32s3_datacenter` is a separate repository implementation and MUST NOT be treated as the authority for the running board. Physical telemetry operation has been verified; acoustic calibration, precise clock accuracy, final surveyed positions, and deployment on the dedicated server still require their own evidence.
 
 ### 11.3 Data and messaging
 
@@ -411,11 +412,12 @@ Codex MUST NOT install/configure Node Exporter now merely because Linux is possi
 Three.js
 WebGL 2
 Vite
+ECharts
 glTF / GLB
 glTF Transform
 ```
 
-Current package baseline includes Three.js and glTF Transform in the repository.
+The operational frontend uses Three.js for the procedural rack and ECharts for analytics. glTF Transform is available for optional imported assets; a GLB is not required for the existing rack.
 
 WebGL 2 is a hard rendering requirement.
 
@@ -468,7 +470,7 @@ Native server/exporter/API ───────────► canonical measur
                                                  │
                                                  ▼
                                        Three.js / WebGL
-                                       registered GLB / asset inspection
+                                       procedural rack / asset inspection
                                        freshness / source state
 ```
 
@@ -549,7 +551,7 @@ Identifiers MUST remain stable across:
 - database records;
 - telemetry;
 - current state;
-- GLB semantic bindings;
+- model-component bindings, or GLB semantic bindings for imported assets;
 - WebGL inspection.
 
 ### 14.3 Physical-to-digital telemetry
@@ -621,7 +623,7 @@ R1 passes only when all applicable criteria below are demonstrated with real pro
 - an approved 3D representation of the real data-center scope loads in WebGL;
 - critical racks have stable `asset_id`;
 - selected servers/assets have stable identity when they are in scope;
-- GLB nodes can be mapped to canonical assets;
+- procedural components or imported GLB nodes can be mapped to canonical assets;
 - a canonical coordinate system is defined;
 - sensor positions included in the R1 physical representation are registered and verified;
 - after the wiring, timing, identity, and calibration gates, real SEN0331 temperature + humidity and INMP441 sound-level measurements reach the digital interface through the ESP32-S3;
@@ -765,11 +767,11 @@ The firmware target assumes 16 MB Flash and 8 MB Octal PSRAM. The marketplace bo
 
 SEN0331 SHT31 is a DIGITAL I2C sensor. INMP441 is a DIGITAL I2S microphone with its own internal ADC/filter. The ESP32 ADC is not used for either sensor type.
 
-The two SEN0331 modules intentionally use separate 100 kHz I2C controllers. Both use high-repeatability acquisition at approximately 1 Hz with mandatory CRC validation. Sensor placement and physical address-selection state remain unverified; the software MUST keep the two sources independently traceable without naming them by placement.
+The two SEN0331 modules use independent I2C controllers currently configured at 50 kHz (`50000` Hz in each `begin` call of the active sketch). Both use high-repeatability acquisition at approximately 1 Hz with mandatory CRC validation. Final measured placement remains distinct from reference placement; the software MUST keep the two sources independently traceable.
 
 INMP441 uses WS GPIO4, BCLK GPIO5, and DIN GPIO6, with VDD at 3V3 and common GND. L/R is specified as GND for the left channel. Philips I2S carries 24-bit two's-complement source data in two 32-clock slots at 48 kHz, targeting 3.072 MHz BCLK below the microphone's 3.2 MHz limit. These are software/wiring targets; physical connections and clocks remain unverified.
 
-ESP-IDF 5.5.5 on ESP32-S3 packs 24-bit stereo RX into six bytes per frame. Acquisition uses four internal DMA descriptors of 480 frames (2,880 bytes and 10 ms each), with MCLK multiple 384, 32-bit slots, and 32-clock WS width. Only left-slot samples are sign-extended into `int32_t`; the right slot is ignored. A single task owns bounded reads. Invalid lengths, timeouts, and detected DMA overwrite/overflow stop capture explicitly. Raw PCM remains local in fixed RAM buffers and is neither logged, persisted, nor transmitted.
+The active sketch uses ESP_I2S at 48 kHz with 32-bit mono left-channel slots. Signed sample words are shifted right by eight bits and normalized by 8388608 for RMS/Peak dBFS. Each window requires 48000 samples and is bounded by 2500 ms; incomplete or zero-peak windows are invalid. Do not substitute the repository ESP-IDF implementation's framing or DMA behavior for this acquisition path. Raw PCM stays in local fixed-size buffers; the canonical payload preserves the raw peak, not a PCM stream. These diagnostics are not calibrated SPL or dBA.
 
 Microphone calibration and the SPL/dBA/Leq policy remain TBD. Production network credentials remain external configuration and MUST NOT be committed or logged.
 
@@ -1120,7 +1122,7 @@ Codex SHOULD prefer one clean realtime mechanism rather than building multiple o
 
 ## 28. 3D representation pipeline contract
 
-The physical reconstruction workflow is:
+The operational representation is the existing single procedural 42U rack rendered by Three.js. Preserve its dimensions, component identities, and sensor bindings; reference geometry does not claim surveyed placement. The following reconstruction workflow applies only to an explicitly approved imported model:
 
 ```text
 Physical Data Center
@@ -1240,7 +1242,7 @@ Three.js is the current implementation.
 
 The web application MUST:
 
-- load the approved runtime GLB;
+- instantiate the existing single procedural 42U rack, or an explicitly approved imported model;
 - preserve canonical scale/orientation;
 - resolve semantic asset identity;
 - allow inspection of selected rack/server assets;
@@ -1491,7 +1493,7 @@ Laptop
         │ configuration/deployment change
         ▼
 PRODUCTION
-Laboratory Data Center Server
+Authorized Dedicated Server
 ├── messaging
 ├── backend
 ├── PostgreSQL
@@ -1704,37 +1706,37 @@ Do not implement these "just in case".
 
 These details remain unresolved and MUST NOT be inferred from the fixed board/sensor selection:
 
-| Area                                                              | Status                                                                                                                             |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Physical ESP32-S3 module marking and memory capacity              | NOT VERIFIED; software targets ESP32-S3-WROOM-1-N16R8 with 16 MB Flash and 8 MB Octal PSRAM                                        |
-| Physical SHT31 address-selection state                            | TBD; firmware MUST support the valid 0x44/0x45 address without assuming a placement                                                |
-| I2C electrical wiring, pull-ups, and measured bus frequency       | Physical verification required                                                                                                     |
-| INMP441 physical channel selection                                | L/R target is GND / left; physical verification required                                                                           |
-| INMP441 GPIO mapping and physical wiring                          | WS GPIO4, BCLK GPIO5, DIN GPIO6; physical verification required                                                                    |
-| Microphone calibration                                            | TBD                                                                                                                                |
-| SPL/dBA/Leq policy                                                | TBD                                                                                                                                |
-| I2S word framing and DMA behavior                                 | Philips, 24-bit source, two 32-clock slots, 48 kHz; physical timing and DMA stability verification required                        |
-| Edge identity provisioning and unique boot generation mechanism   | Configuration and random boot generation implemented; real identity provisioning and operational uniqueness require verification   |
-| Source clock synchronization mechanism and verified time accuracy | SNTP-backed source time implemented; endpoint provisioning and time accuracy require verification                                  |
-| Acoustic diagnostic metric/unit                                   | `sound_rms_dbfs` and `sound_peak_dbfs` in dBFS; calibrated SPL/dBA/Leq semantics remain gated                                      |
-| Final sensor placement and physical registration                  | TBD                                                                                                                                |
-| Sensor verification/calibration procedure                         | TBD                                                                                                                                |
-| Final freshness thresholds                                        | TBD                                                                                                                                |
-| Production network credentials                                    | TBD; never committed or logged                                                                                                     |
-| Final server OS/specification                                     | TBD                                                                                                                                |
-| Final container/runtime choice                                    | TBD after server discovery                                                                                                         |
-| Production service manager                                        | TBD                                                                                                                                |
-| Production network/VLAN                                           | TBD                                                                                                                                |
-| Production ports                                                  | TBD                                                                                                                                |
-| Production TLS/certificate policy                                 | TBD                                                                                                                                |
-| Camera as runtime sensor                                          | TBD                                                                                                                                |
-| Native server NIC metrics/interface/acquisition method            | TBD after authorized server discovery                                                                                              |
-| Electrical real-power acceptance and approved meter               | Supervisor confirmation required; if required, an approved physical meter and real verification evidence block final R1 acceptance |
-| Redfish availability                                              | TBD                                                                                                                                |
-| Public cloud provider                                             | TBD                                                                                                                                |
-| Cloud backup policy                                               | TBD                                                                                                                                |
+| Area                                                              | Status                                                                                                                           |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Physical ESP32-S3 module marking and memory capacity              | NOT VERIFIED; software targets ESP32-S3-WROOM-1-N16R8 with 16 MB Flash and 8 MB Octal PSRAM                                      |
+| Physical SHT31 address-selection state                            | TBD; firmware MUST support the valid 0x44/0x45 address without assuming a placement                                              |
+| I2C electrical wiring, pull-ups, and measured bus frequency       | Physical verification required                                                                                                   |
+| INMP441 physical channel selection                                | L/R target is GND / left; physical verification required                                                                         |
+| INMP441 GPIO mapping and physical wiring                          | WS GPIO4, BCLK GPIO5, DIN GPIO6; physical verification required                                                                  |
+| Microphone calibration                                            | TBD                                                                                                                              |
+| SPL/dBA/Leq policy                                                | TBD                                                                                                                              |
+| I2S word framing and DMA behavior                                 | Philips, 24-bit source, two 32-clock slots, 48 kHz; physical timing and DMA stability verification required                      |
+| Edge identity provisioning and unique boot generation mechanism   | Configuration and random boot generation implemented; real identity provisioning and operational uniqueness require verification |
+| Source clock synchronization mechanism and verified time accuracy | SNTP-backed source time implemented; endpoint provisioning and time accuracy require verification                                |
+| Acoustic diagnostic metric/unit                                   | `sound_rms_dbfs` and `sound_peak_dbfs` in dBFS; calibrated SPL/dBA/Leq semantics remain gated                                    |
+| Final sensor placement and physical registration                  | TBD                                                                                                                              |
+| Sensor verification/calibration procedure                         | TBD                                                                                                                              |
+| Final freshness thresholds                                        | TBD                                                                                                                              |
+| Production network credentials                                    | TBD; never committed or logged                                                                                                   |
+| Final server OS/specification                                     | TBD                                                                                                                              |
+| Final container/runtime choice                                    | Existing Docker Compose deployment; dedicated-server portability requires target verification                                    |
+| Production service manager                                        | TBD                                                                                                                              |
+| Production network/VLAN                                           | TBD                                                                                                                              |
+| Production ports                                                  | TBD                                                                                                                              |
+| Production TLS/certificate policy                                 | TBD                                                                                                                              |
+| Camera as runtime sensor                                          | TBD                                                                                                                              |
+| Native server NIC metrics/interface/acquisition method            | Windows physical NIC collector implemented; dedicated-server interface/exporter requires authorized target verification          |
+| Electrical measurement source                                     | Shelly Plug PM Gen3 native PM1 measurements; calibration or measurement-direction claims require physical evidence               |
+| Redfish availability                                              | TBD                                                                                                                              |
+| Public cloud provider                                             | TBD                                                                                                                              |
+| Cloud backup policy                                               | TBD                                                                                                                              |
 
-The ESP32-S3 module target, two SEN0331 units, independent I2C controllers and pins, 100 kHz bus rate, high-repeatability 1 Hz environmental cadence, mandatory CRC, INMP441 type, and 48 kHz acoustic target are fixed software decisions. Physical verification and metrology gates above remain unresolved.
+The ESP32-S3 module target, two SEN0331 units, independent I2C controllers and pins, currently configured 50 kHz bus rate, high-repeatability 1 Hz environmental cadence, mandatory CRC, INMP441 type, and 48 kHz acoustic target must follow the active sketch. Operational verification does not resolve unmeasured timing, placement, calibration, or dedicated-server gates.
 
 ---
 
@@ -1743,16 +1745,17 @@ The ESP32-S3 module target, two SEN0331 units, independent I2C controllers and p
 The following are not TBD unless the user explicitly changes the PRD:
 
 ```text
-Project object       = Data Center, Laboratorium Sistem Cerdas
-Project name         = DT_DataCenter
-Current maturity     = R1 Representation only
+Project object       = one physical rack
+Project name         = Digital Twin Data Center
+Internal identifier  = DT_DataCenter
+Current scope        = physical acquisition, monitoring, historical analytics, deployment
 Current direction    = physical → virtual
 Physical scope         = one lower-environment rack; upper server is no-touch
 Measurement/comms MCU  = ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
 Target memory config   = 16 MB Flash + 8 MB Octal PSRAM; physical verification pending
 Temperature + humidity = 2x DFRobot Fermion SHT31 SEN0331, digital I2C
-Sensor A interface     = I2C0, SDA GPIO8, SCL GPIO9, 100 kHz
-Sensor B interface     = I2C1, SDA GPIO10, SCL GPIO11, 100 kHz
+Sensor A interface     = I2C0, SDA GPIO8, SCL GPIO9, configured 50 kHz
+Sensor B interface     = I2C1, SDA GPIO10, SCL GPIO11, configured 50 kHz
 Environmental mode     = high repeatability, approximately 1 Hz, CRC mandatory
 Microphone             = INMP441, digital I2S, 24-bit source, 48 kHz target
 ESP32-S3 responsibility = acquisition / validation / conversion / acoustic processing / Wi-Fi / MQTT
@@ -1764,11 +1767,11 @@ Observability         = Prometheus + Grafana
 Web interface         = required
 WebGL                 = hard requirement
 Primary 3D runtime    = Three.js + WebGL 2
-Runtime 3D format     = GLB/glTF
-Programmatic 3D tool  = glTF Transform
+Runtime 3D model      = one procedural Three.js 42U rack
+Historical charts    = existing ECharts implementation
 Fake production data  = forbidden
 Manual GUI 3D work    = external handoff
-Production server     = real lab server after discovery
+Production server     = authorized dedicated server after target verification
 Public cloud realtime dependency = forbidden
 ```
 
@@ -1795,7 +1798,7 @@ R1 acceptance requires all applicable evidence in section 15 and section 49, inc
 - final 3D, spatial, and WebGL verification;
 - production deployment evidence on the approved lower-environment server target.
 
-If the supervisor requires electrical real-power telemetry, the absence of an approved physical meter and real verification evidence blocks final R1 acceptance. Simulated readings cannot satisfy it.
+Electrical telemetry uses the existing Shelly Plug PM Gen3 PM1 source. Preserve signed native values, counters, errors, and flags; do not infer per-component consumption or add relay control. Calibration and measurement-direction claims require physical evidence.
 
 ---
 
@@ -1857,7 +1860,7 @@ database migrations
 measurement history
 canonical current-state contract
 realtime API/state mechanism
-runtime GLB
+runtime rack geometry, with GLB only for an approved imported model
 semantic asset manifest
 physical verification evidence
 freshness semantics
@@ -1949,18 +1952,18 @@ If the answer reveals a scope violation, Codex MUST stop that implementation pat
 When context is tight, Codex may use this summary, but it MUST defer to the full PRD for detail:
 
 ```text
-DT_DataCenter is a staged Digital Twin of the Data Center in
-Laboratorium Sistem Cerdas.
+Digital Twin Data Center is an operational physical rack monitoring system.
+Internal identifier: DT_DataCenter.
 
 CURRENT SCOPE:
-R1 Representation only
+physical acquisition, monitoring, historical analytics, and deployment
 
 CURRENT DIRECTION:
 physical → virtual only
 
 PHYSICAL ENVIRONMENTAL PATH:
-SEN0331 sensor A → I2C0, GPIO8/GPIO9, 100 kHz ─┐
-SEN0331 sensor B → I2C1, GPIO10/GPIO11, 100 kHz ├→ ESP32-S3 board carrying
+SEN0331 sensor A → I2C0, GPIO8/GPIO9, configured 50 kHz ─┐
+SEN0331 sensor B → I2C1, GPIO10/GPIO11, configured 50 kHz ├→ ESP32-S3 board carrying
 INMP441 → digital I2S, 24-bit, 48 kHz target ───┘  ESP32-S3-WROOM-1-N16R8
 → authoritative acquisition / validation / conversion / acoustic processing
 → Wi-Fi / MQTT
@@ -1978,9 +1981,7 @@ server/exporter/API
 → canonical Twin state
 
 3D:
-manual scan/reconstruction
-→ approved registered GLB
-→ programmatic validation/optimization
+one procedural 42U rack with provisional installation geometry
 → semantic asset binding
 → Three.js/WebGL
 
@@ -1999,7 +2000,7 @@ not product storage
 
 DEPLOYMENT:
 development on laptop
-→ final lab data-center server
+→ authorized dedicated server
 through configuration/deployment changes
 after real server discovery
 
@@ -2015,7 +2016,7 @@ do not invent TBDs
 
 ## 54. Final instruction to Codex
 
-Build only what is required to make the physical Data Center in Laboratorium Sistem Cerdas a traceable, spatially registered, real-data-driven Digital Twin through **R1 Representation**.
+Preserve Digital Twin Data Center as one traceable operational system with real physical acquisition, canonical storage, spatial reference geometry, historical analytics, and reproducible deployment. Do not add another project identity or rebuild completed capabilities.
 
 Do not dilute the project into a generic dashboard.
 

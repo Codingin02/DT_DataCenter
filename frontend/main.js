@@ -11,18 +11,48 @@ import {
 import {
   LIVE_STATE,
   LiveCurrentState,
+  LiveObservationBuffer,
   currentStateKey,
   summarizeDeviceStatus,
 } from './live-state.js';
-import { historyUrl, renderHistoryChart } from './history-chart.js';
+import {
+  HISTORY_RANGE,
+  historyAssetIds,
+  historyUrl,
+  renderHistoryChart,
+  renderAnalysisChart,
+  liveChartOption,
+  disposeHistoryChart,
+} from './history-chart.js';
+import { ANALYTICS_CATEGORIES, buildAnalyticsPanels } from './analytics.js';
+import { mountHardwareSchematic } from './hardware-schematic.js';
+import {
+  observationState,
+  observationLabel,
+  visibleStreamRecords,
+  readingLabel,
+  measurementValue,
+  sourceLabel as productSource,
+  sourceFilterKey,
+  unitLabel,
+} from './presentation.js';
 
 const requestedAssetId = new window.URLSearchParams(window.location.search).get('asset_id')?.trim();
 const assetId = requestedAssetId || document.body.dataset.assetId?.trim() || '';
+const physicalDeviceId = assetId === 'dt-datacenter-rack' ? 'rack-controller' : null;
+const electricalDeviceId = document.body.dataset.electricalDeviceId?.trim() || '';
+const observedAssetIds = physicalDeviceId
+  ? ['sht31-a', 'sht31-b', 'rack-acoustic', electricalDeviceId].filter(Boolean)
+  : [assetId].filter(Boolean);
 const canvas = document.querySelector('#rack-canvas');
+const physicalRackModel = canvas.dataset.modelKind === 'rack';
 const viewerStatus = document.querySelector('#viewer-status');
 const currentCounts = document.querySelectorAll('[data-current-count]');
 const assetCount = document.querySelector('#asset-count');
 const hardwareTopology = document.querySelector('[data-hardware-topology]');
+const disposeHardwareSchematic = mountHardwareSchematic(
+  document.querySelector('.schematic-viewport')
+);
 const hardwareNodes = document.querySelectorAll('[data-hardware-node]');
 const hardwareTraces = document.querySelectorAll('[data-trace]');
 const hardwareStateTargets = document.querySelectorAll('[data-hardware-state]');
@@ -32,6 +62,7 @@ const hardwareStateLabel = document.querySelector('[data-hardware-state-label]')
 const hardwareCondition = document.querySelector('[data-hardware-condition]');
 const hardwareDecision = document.querySelector('[data-hardware-decision]');
 const hardwareDiagnostics = document.querySelector('[data-hardware-diagnostics]');
+const hardwareObservations = document.querySelector('[data-hardware-observations]');
 const hardwareConditionTargets = document.querySelectorAll('[data-condition]');
 const hardwareValueTargets = document.querySelectorAll('[data-hardware-value]');
 const scopeTraces = document.querySelector('[data-scope-traces]');
@@ -42,8 +73,13 @@ const hardwarePinMatrix = document.querySelector('[data-pin-matrix]');
 const mechanicalCounts = document.querySelectorAll('[data-mechanical-count]');
 const streamRegistryBody = document.querySelector('#stream-registry-body');
 const streamFilters = document.querySelectorAll('[data-stream-filter]');
-const surfaceModeButton = document.querySelector('#surface-mode');
+const streamCapabilities = document.querySelector('#stream-capabilities');
+const streamSourceFilter = document.querySelector('#stream-source-filter');
+const surfaceModeControl = document.querySelector('#surface-mode');
+const inspectionControl = document.querySelector('#rack-inspection');
+document.querySelector('[data-layer="zones"]').closest('label').hidden = physicalRackModel;
 const layerControl = document.querySelector('.layer-control');
+const sensorEffectState = document.querySelector('#sensor-effect-state');
 const anchorCounts = document.querySelectorAll('[data-anchor-count]');
 const measurementZoneState = document.querySelector('#measurement-zone-state');
 const zoneSummaries = document.querySelectorAll('[data-zone-summary]');
@@ -59,6 +95,7 @@ const referenceScaleGroup = document.querySelector('.reference-scale-group');
 const referenceScaleHome = referenceScaleGroup.parentElement;
 const viewerPanel = document.querySelector('.viewer');
 const measurementBrowserGroup = document.querySelector('.measurement-browser-group');
+const twinSources = document.querySelector('#twin-sources');
 const legendMetric = document.querySelector('#legend-metric');
 const legendPanels = document.querySelectorAll('[data-measurement-legend]');
 const workspaceMain = document.querySelector('.workspace-main');
@@ -76,6 +113,10 @@ const inspectorTechnical = inspector.querySelector('.inspector-technical');
 const inspectorKicker = document.querySelector('#inspector-kicker');
 const inspectorEmpty = document.querySelector('#inspector-empty');
 const inspectorDetail = document.querySelector('#inspector-detail');
+const inspectorReference = document.createElement('section');
+inspectorReference.hidden = true;
+inspectorReference.setAttribute('aria-label', 'Selected reference geometry');
+inspector.append(inspectorReference);
 const clearSelectionButton = document.querySelector('#clear-selection');
 const inspectorTitle = document.querySelector('#inspector-title');
 const inspectorValue = document.querySelector('#inspector-value');
@@ -102,12 +143,17 @@ const historyQuery = document.querySelector('#history-query');
 const historyMetric = document.querySelector('#history-metric');
 const historySource = document.querySelector('#history-source');
 const historyRangeButtons = document.querySelectorAll('[data-history-range]');
-const analyticsHistoryChart = document.querySelector('#analytics-history-chart');
 const analyticsHistoryState = document.querySelector('#analytics-history-state');
 const analyticsBrowserState = document.querySelector('#analytics-browser-state');
-const analyticsBrowserMetric = document.querySelector('#analytics-browser-metric');
-const analyticsBrowserSource = document.querySelector('#analytics-browser-source');
-const analyticsBrowserRange = document.querySelector('#analytics-browser-range');
+const historyCategory = document.querySelector('#history-category');
+const historyAsset = document.querySelector('#history-asset');
+const historyAggregation = document.querySelector('#history-aggregation');
+const historyAbsolute = document.querySelector('#history-absolute');
+const historyLive = document.querySelector('#history-live');
+const analyticsDashboard = document.querySelector('#analytics-dashboard');
+const analyticsCurrent = document.querySelector('#analytics-current');
+const analyticsStatistics = document.querySelector('#analytics-statistics-body');
+const analyticsTitle = document.querySelector('#analytics-title');
 const navigationItems = document.querySelectorAll('[data-navigation]');
 const assetContexts = document.querySelectorAll('[data-asset-context]');
 const registrationSource = document.querySelector('#registration-source');
@@ -288,13 +334,13 @@ const metricPresentation = {
   current_a: { group: 'electrical', label: 'Current', system: 'Electrical', unit: 'A' },
   active_power_w: {
     group: 'electrical',
-    label: 'Active power',
+    label: 'Active Power',
     system: 'Electrical',
     unit: 'W',
   },
   apparent_power_va: {
     group: 'electrical',
-    label: 'Apparent power',
+    label: 'Apparent Power',
     system: 'Electrical',
     unit: 'VA',
   },
@@ -312,11 +358,68 @@ const metricPresentation = {
   },
   energy_wh_total: {
     group: 'electrical',
-    label: 'Cumulative energy',
+    label: 'Active Energy',
     system: 'Electrical',
     unit: 'Wh',
   },
 };
+
+Object.assign(metricPresentation, {
+  returned_energy_wh_total: {
+    group: 'electrical',
+    label: 'Returned Energy',
+    system: 'Electrical',
+    unit: 'Wh',
+  },
+  pm1_error_count: {
+    group: 'electrical',
+    label: 'Meter errors',
+    system: 'Electrical',
+    unit: 'count',
+  },
+  pm1_flag_count: {
+    group: 'electrical',
+    label: 'Meter flags',
+    system: 'Electrical',
+    unit: 'count',
+  },
+  wifi_rssi_dbm: { group: 'diagnostic', label: 'Signal Strength', system: 'Hardware', unit: 'dBm' },
+  ram_size_bytes: { group: 'diagnostic', label: 'RAM size', system: 'Hardware', unit: 'bytes' },
+  ram_free_bytes: { group: 'diagnostic', label: 'Free Memory', system: 'Hardware', unit: 'bytes' },
+  ram_min_free_bytes: {
+    group: 'diagnostic',
+    label: 'RAM minimum free',
+    system: 'Hardware',
+    unit: 'bytes',
+  },
+  fs_size_bytes: { group: 'diagnostic', label: 'Storage size', system: 'Hardware', unit: 'bytes' },
+  fs_free_bytes: { group: 'diagnostic', label: 'Storage free', system: 'Hardware', unit: 'bytes' },
+  device_temperature_c: {
+    group: 'diagnostic',
+    label: 'Device temperature',
+    system: 'Hardware',
+    unit: 'degC',
+  },
+  mqtt_connected: {
+    group: 'diagnostic',
+    label: 'MQTT Connection',
+    system: 'Hardware',
+    unit: 'ratio',
+  },
+  wifi_connected: {
+    group: 'diagnostic',
+    label: 'Wi-Fi Connection',
+    system: 'Hardware',
+    unit: 'ratio',
+  },
+  restart_required: {
+    group: 'diagnostic',
+    label: 'Restart Required',
+    system: 'Hardware',
+    unit: 'ratio',
+  },
+  reset_reason: { group: 'diagnostic', label: 'Reset reason', system: 'Hardware', unit: 'count' },
+});
 
 const workspacePresentation = {
   assets: ['Assets', 'Hardware condition'],
@@ -330,6 +433,7 @@ const stateTone = {
   fresh: 'healthy',
   degraded: 'attention',
   stale: 'attention',
+  delayed: 'attention',
   offline: 'error',
   invalid: 'error',
   unknown: 'unknown',
@@ -337,17 +441,10 @@ const stateTone = {
 
 const hardwareAssets = Object.freeze({
   'esp32-s3': Object.freeze({
-    title: 'ESP32-S3 DevKitC-1',
-    breadcrumb: 'ESP32-S3',
+    title: 'Rack Controller',
+    breadcrumb: 'Rack Controller',
     traces: Object.freeze(['i2c0', 'i2c1', 'i2s0', 'transport']),
-    sensors: Object.freeze([
-      'acceptance-esp32-brownout',
-      'acceptance-esp32-reset',
-      'acceptance-esp32-mqtt-reconnect',
-      'acceptance-esp32-uptime',
-      'acceptance-esp32-supply-voltage',
-      'acceptance-esp32-supply-current',
-    ]),
+    sensors: Object.freeze([]),
     primaryMetrics: Object.freeze(['temperature', 'humidity', 'sound_rms_dbfs']),
     diagnostics: Object.freeze([
       ['Brownout resets', 'brownout_count'],
@@ -360,7 +457,7 @@ const hardwareAssets = Object.freeze({
     facts: Object.freeze([
       ['Variant', 'N16R8'],
       ['Role', 'Edge acquisition / transport'],
-      ['Firmware', 'ESP-IDF'],
+      ['Firmware', 'Arduino ESP32 core 3.3.12'],
       ['Transport', 'Wi-Fi -> MQTT'],
       ['Acquisition interfaces', 'I2C0, I2C1, I2S0'],
       ['Power', '3V3, GND'],
@@ -383,14 +480,8 @@ const hardwareAssets = Object.freeze({
     title: 'SHT31 A',
     breadcrumb: 'SHT31 A',
     traces: Object.freeze(['i2c0']),
-    sensors: Object.freeze(['acceptance-sht31-a-temperature', 'acceptance-sht31-a-humidity']),
-    diagnosticSensors: Object.freeze([
-      'acceptance-sht31-a-crc',
-      'acceptance-sht31-a-retry',
-      'acceptance-sht31-a-reset',
-      'acceptance-sht31-a-supply-voltage',
-      'acceptance-sht31-a-supply-current',
-    ]),
+    sensors: Object.freeze(['sht31-a-temperature', 'sht31-a-humidity']),
+    diagnosticSensors: Object.freeze([]),
     diagnostics: Object.freeze([
       ['CRC errors', 'crc_error_count'],
       ['I²C retries', 'i2c_retry_count'],
@@ -401,7 +492,7 @@ const hardwareAssets = Object.freeze({
     facts: Object.freeze([
       ['Model', 'DFRobot Fermion SEN0331 / SHT31'],
       ['Interface', 'I2C0'],
-      ['Reference placement', 'Middle rack top / roof surface'],
+      ['Installed role', 'Upper exhaust airflow'],
       ['State basis', 'Configured reference; observed from current state'],
       ['Supply reference', '2.15–5.5 V; module current <1.5 mA'],
       ['Typical accuracy', '±0.2 °C; ±2 %RH'],
@@ -422,14 +513,8 @@ const hardwareAssets = Object.freeze({
     title: 'SHT31 B',
     breadcrumb: 'SHT31 B',
     traces: Object.freeze(['i2c1']),
-    sensors: Object.freeze(['acceptance-sht31-b-temperature', 'acceptance-sht31-b-humidity']),
-    diagnosticSensors: Object.freeze([
-      'acceptance-sht31-b-crc',
-      'acceptance-sht31-b-retry',
-      'acceptance-sht31-b-reset',
-      'acceptance-sht31-b-supply-voltage',
-      'acceptance-sht31-b-supply-current',
-    ]),
+    sensors: Object.freeze(['sht31-b-temperature', 'sht31-b-humidity']),
+    diagnosticSensors: Object.freeze([]),
     diagnostics: Object.freeze([
       ['CRC errors', 'crc_error_count'],
       ['I²C retries', 'i2c_retry_count'],
@@ -440,7 +525,7 @@ const hardwareAssets = Object.freeze({
     facts: Object.freeze([
       ['Model', 'DFRobot Fermion SEN0331 / SHT31'],
       ['Interface', 'I2C1'],
-      ['Reference placement', 'Middle rack front-center'],
+      ['Installed role', 'Server vicinity'],
       ['State basis', 'Configured reference; observed from current state'],
       ['Supply reference', '2.15–5.5 V; module current <1.5 mA'],
       ['Typical accuracy', '±0.2 °C; ±2 %RH'],
@@ -461,15 +546,8 @@ const hardwareAssets = Object.freeze({
     title: 'INMP441',
     breadcrumb: 'INMP441',
     traces: Object.freeze(['i2s0']),
-    sensors: Object.freeze(['acceptance-inmp441-rms', 'acceptance-inmp441-peak']),
-    diagnosticSensors: Object.freeze([
-      'acceptance-inmp441-i2s-error',
-      'acceptance-inmp441-dma-overrun',
-      'acceptance-inmp441-clip-ratio',
-      'acceptance-inmp441-stuck-ratio',
-      'acceptance-inmp441-supply-voltage',
-      'acceptance-inmp441-supply-current',
-    ]),
+    sensors: Object.freeze(['rack-sound-rms', 'rack-sound-peak']),
+    diagnosticSensors: Object.freeze([]),
     diagnostics: Object.freeze([
       ['I²S errors', 'i2s_error_count'],
       ['DMA overruns', 'dma_overrun_count'],
@@ -500,23 +578,51 @@ const hardwareAssets = Object.freeze({
     ]),
   }),
   electrical: Object.freeze({
-    title: 'Electrical Measurement Point',
-    breadcrumb: 'Electrical',
+    title: 'Rack Power',
+    breadcrumb: 'Rack Power',
     traces: Object.freeze(['electrical']),
     sensors: Object.freeze([
-      'acceptance-voltage',
-      'acceptance-current',
-      'acceptance-active-power',
-      'acceptance-apparent-power',
-      'acceptance-power-factor',
-      'acceptance-frequency',
-      'acceptance-energy',
+      'shelly-voltage_v',
+      'shelly-current_a',
+      'shelly-active_power_w',
+      'shelly-frequency_hz',
+      'shelly-energy_wh_total',
+      'shelly-returned_energy_wh_total',
     ]),
-    diagnostics: Object.freeze([]),
+    diagnosticSensors: Object.freeze([
+      'shelly-uptime_s',
+      'shelly-wifi_rssi_dbm',
+      'shelly-ram_free_bytes',
+      'shelly-mqtt_connected',
+      'shelly-wifi_connected',
+      'shelly-restart_required',
+      'shelly-ram_min_free_bytes',
+      'shelly-ram_size_bytes',
+      'shelly-fs_free_bytes',
+      'shelly-fs_size_bytes',
+      'shelly-reset_reason',
+      'shelly-pm1_error_count',
+      'shelly-pm1_flag_count',
+    ]),
+    diagnostics: Object.freeze([
+      ['Uptime', 'uptime_s'],
+      ['Signal Strength', 'wifi_rssi_dbm'],
+      ['Memory', 'ram_free_bytes'],
+      ['Connection Status', 'mqtt_connected'],
+      ['Wi-Fi Connection', 'wifi_connected'],
+      ['Restart Required', 'restart_required'],
+      ['Minimum Free Memory', 'ram_min_free_bytes'],
+      ['Total Memory', 'ram_size_bytes'],
+      ['Free Storage', 'fs_free_bytes'],
+      ['Total Storage', 'fs_size_bytes'],
+      ['Reset Reason', 'reset_reason'],
+      ['Meter errors', 'pm1_error_count'],
+      ['Meter flags', 'pm1_flag_count'],
+    ]),
     facts: Object.freeze([
-      ['Role', 'Rack electrical instrumentation reference'],
-      ['Provenance', 'Simulated source'],
-      ['Instrument', 'Instrument model pending physical selection'],
+      ['Role', 'Electrical monitoring only'],
+      ['Instrument', 'S3PL-30116EU'],
+      ['Device', electricalDeviceId],
       ['Method reference', 'IEC 61000-4-30; conformance not assessed'],
     ]),
     pins: Object.freeze([]),
@@ -525,18 +631,19 @@ const hardwareAssets = Object.freeze({
 
 let spatialAnchors = [];
 let registrationSources = [];
+let analyticsSources = [];
 let registrationPreview = null;
 let activeWorkspace = 'twin';
 let activeSystemDomain = 'architecture';
 let activeSpatialMetric = 'temperature';
-let activeSurfaceMode = SURFACE_MODE.TEXTURED;
 let activeHistoryRange = '5d';
 let selectedKey = null;
+let selectedReference = null;
 let selectedHardwareKey = null;
 let scopeRange = 'live';
 let scopeRequest;
 let scopeRequestKey = '';
-let scopeFetchedAt = 0;
+const scopeLivePanels = new Map();
 let activeStreamFilter = 'all';
 let connectionState = LIVE_STATE.UNCONFIGURED;
 const diagnosticBaseline = new Map();
@@ -544,23 +651,20 @@ const recentDiagnosticChanges = new Map();
 let liveState;
 let viewer;
 let historyAbort;
+let analyticsPayloads = [];
+let analyticsPaused = false;
+let analyticsRefreshTimer;
+let analyticsFetchedAt = 0;
+let analyticsLoading = false;
+let analyticsLoadedQuery = '';
+const analyticsCharts = new Map();
+let displayedFreshness = '';
 
 function setStatus(name, value, tone) {
   for (const element of statusTargets[name]) {
     element.textContent = value;
     element.dataset.tone = tone;
   }
-}
-
-function productSource(sensorId, group) {
-  if (sensorId.startsWith('acceptance-') && group === 'telecommunications') return 'Host NIC';
-  if (sensorId.startsWith('acceptance-sht31-a-')) return 'SHT31 A';
-  if (sensorId.startsWith('acceptance-sht31-b-')) return 'SHT31 B';
-  if (sensorId.startsWith('acceptance-inmp441-')) return 'INMP441';
-  if (sensorId.startsWith('acceptance-esp32-')) return 'ESP32-S3';
-  if (sensorId.startsWith('acceptance-net-')) return 'Host NIC';
-  if (sensorId.startsWith('acceptance-')) return 'Rack Electrical';
-  return sensorId;
 }
 
 function renderConnectionStatus(records) {
@@ -636,7 +740,11 @@ function synchronizeWorkspaceSurface() {
     !isMeasurementSpatialWorkspace() || spatialLayerCallout.dataset.quiet === 'true';
   workspaceMain.dataset.workspace = activeWorkspace;
   workspaceMain.dataset.spatialMode = spatialMode;
-  requestAnimationFrame(() => viewer?.resize());
+  viewer?.setEffectsActive(activeWorkspace === 'twin');
+  requestAnimationFrame(() => {
+    viewer?.scene.background.set(window.getComputedStyle(viewerPanel).backgroundColor);
+    viewer?.resize();
+  });
 }
 
 function synchronizeNavigation() {
@@ -703,15 +811,39 @@ async function loadSpatialRegistration(message = '') {
     if (!Array.isArray(result.sources) || !Array.isArray(result.anchors)) {
       throw new TypeError('Invalid spatial registration response.');
     }
+    analyticsSources = result.sources.filter(
+      (source) =>
+        observedAssetIds.includes(source.asset_id) ||
+        source.device_id === physicalDeviceId ||
+        source.device_id === electricalDeviceId ||
+        source.device_id?.startsWith('host-')
+    );
+    if (physicalDeviceId) {
+      const monitoringAssets = result.sources
+        .filter(
+          (source) => source.device_id === physicalDeviceId || source.device_id?.startsWith('host-')
+        )
+        .map((source) => source.asset_id);
+      for (const id of new Set(monitoringAssets))
+        if (!observedAssetIds.includes(id)) observedAssetIds.push(id);
+      liveState?.addAssets(monitoringAssets);
+    }
     registrationSources = result.sources.filter(
       (source) =>
         typeof source?.sensor_id === 'string' &&
         typeof source?.asset_id === 'string' &&
         typeof source?.metric === 'string' &&
         Object.hasOwn(SPATIAL_METRIC, source.metric) &&
+        (!physicalDeviceId || source.device_id === physicalDeviceId) &&
         (source.coordinate_system_id === null || typeof source.coordinate_system_id === 'string')
     );
-    setSpatialAnchors(result.anchors);
+    setSpatialAnchors(
+      physicalRackModel
+        ? (viewer?.installationPlacements(registrationSources) ?? [])
+        : result.anchors.filter(
+            (anchor) => !physicalDeviceId || anchor.device_id === physicalDeviceId
+          )
+    );
     renderRegistrationControl(message);
     renderMeasurements(liveState?.records ?? []);
   } catch {
@@ -722,69 +854,18 @@ async function loadSpatialRegistration(message = '') {
   }
 }
 
-function samePosition(left, right) {
-  return left?.length === 3 && left.every((value, index) => Math.abs(value - right[index]) < 1e-6);
-}
-
-async function synchronizeAcceptanceAnchors() {
-  const positions = viewer?.acceptanceAnchorPositions();
-  if (!positions) throw new Error('Middle cabinet surfaces unavailable.');
-  const required = [
-    ['acceptance-sht31-a-temperature', positions.top],
-    ['acceptance-sht31-a-humidity', positions.top],
-    ['acceptance-sht31-b-temperature', positions.front],
-    ['acceptance-sht31-b-humidity', positions.front],
-    ['acceptance-voltage', positions.electrical],
-    ['acceptance-current', positions.electrical],
-    ['acceptance-active-power', positions.electrical],
-    ['acceptance-apparent-power', positions.electrical],
-    ['acceptance-power-factor', positions.electrical],
-    ['acceptance-frequency', positions.electrical],
-    ['acceptance-energy', positions.electrical],
-  ];
-  let changed = false;
-  for (const [sensorId, position] of required) {
-    const source = registrationSources.find(({ sensor_id: candidate }) => candidate === sensorId);
-    const anchor = spatialAnchors.find(({ sensor_id: candidate }) => candidate === sensorId);
-    if (!source?.coordinate_system_id)
-      throw new Error(`Missing coordinate system for ${sensorId}.`);
-    if (samePosition(anchor?.position, position)) continue;
-    const response = await fetch('/api/spatial-registration', {
-      body: JSON.stringify({
-        coordinate_system_id: source.coordinate_system_id,
-        position,
-        sensor_id: sensorId,
-      }),
-      headers: { 'content-type': 'application/json' },
-      method: 'POST',
-      signal: spatialRegistrationAbort.signal,
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    changed = true;
-  }
-  if (changed) await loadSpatialRegistration();
-}
-
 async function initializeSpatialRepresentation() {
   const [modelLoaded] = await Promise.all([
-    viewer?.loadModel({ url: canvas.dataset.modelUrl }) ?? false,
+    viewer?.loadModel(physicalRackModel ? { kind: 'rack' } : { url: canvas.dataset.modelUrl }) ??
+      false,
     loadSpatialRegistration(),
   ]);
   if (!modelLoaded) return;
   renderMeasurements(liveState?.records ?? []);
-  if (!registrationSources.some(({ sensor_id: id }) => id.startsWith('acceptance-'))) return;
-  try {
-    await synchronizeAcceptanceAnchors();
-  } catch {
-    if (spatialRegistrationAbort.signal.aborted) return;
-    spatialLayerCallout.dataset.quiet = 'false';
-    spatialLayerCallout.hidden = false;
-    spatialLayerState.textContent = 'Spatial placement unavailable';
-    spatialLayerMessage.textContent = 'Middle-cabinet sensor surfaces could not be persisted.';
-  }
 }
 
 function selectSpatialContext(context) {
+  selectedReference = null;
   selectedKey = spatialAnchorKey(context);
   renderMeasurements(liveState?.records ?? []);
 }
@@ -821,6 +902,37 @@ try {
       }
       registrationPreviewPanel.hidden = false;
       registrationMessage.textContent = 'Reference geometry point selected. Confirm to persist.';
+    },
+    (context) => {
+      selectedKey = null;
+      selectedReference = context;
+      const properties = document.createElement('dl');
+      properties.className = 'inspector-properties';
+      for (const [label, value] of [
+        ['Scene object', context.object_id],
+        [
+          'Geometry',
+          context.dimensional_authority === 'manufacturer_reference'
+            ? 'Manufacturer dimensions · position unmeasured'
+            : 'Photograph estimate · unmeasured',
+        ],
+        [
+          'Extent X × Y × Z',
+          `${context.dimensions.map((value) => Math.round(value * 1000)).join(' × ')} mm`,
+        ],
+        ['Photo evidence', context.photo_evidence.join(', ')],
+        ['Telemetry', 'Geometric reference only · no native source'],
+      ]) {
+        const row = document.createElement('div');
+        const term = document.createElement('dt');
+        const detail = document.createElement('dd');
+        term.textContent = label;
+        detail.textContent = value;
+        row.append(term, detail);
+        properties.append(row);
+      }
+      inspectorReference.replaceChildren(properties);
+      renderMeasurements(liveState?.records ?? []);
     }
   );
   setSpatialAnchors(spatialAnchors);
@@ -849,11 +961,13 @@ function createRegistryRow(record) {
   metric.dataset.selectKey = key;
   metric.textContent = presentation.label;
   const source = document.createElement('small');
-  source.textContent = productSource(record.sensor_id, presentation.group);
+  source.textContent = productSource(record.sensor_id, record.display_name);
+  source.title = record.sensor_id;
   metric.append(source);
   const reading = document.createElement('span');
   reading.className = 'registry-reading';
-  reading.textContent = `${record.value} ${record.unit}`;
+  reading.textContent = observationLabel(record);
+  reading.dataset.tone = stateTone[observationState(record)];
   const sourceTime = document.createElement('time');
   sourceTime.dateTime = record.source_ts;
   sourceTime.textContent = record.source_ts;
@@ -901,18 +1015,37 @@ function createDefinitionRegistryRow(system, label, value, spatialState, referen
 
 function renderStreamRegistry(records) {
   streamRegistryBody.replaceChildren();
+  const selectedSource = streamSourceFilter.value;
+  const sources = [...new Set(records.map((record) => sourceFilterKey(record.sensor_id)))].sort();
+  if (
+    [...streamSourceFilter.options]
+      .slice(1)
+      .map((option) => option.value)
+      .join('\n') !== sources.join('\n')
+  ) {
+    streamSourceFilter.replaceChildren(
+      Object.assign(document.createElement('option'), { value: '', textContent: 'All sources' }),
+      ...sources.map((source) => {
+        const record = records.find((entry) => sourceFilterKey(entry.sensor_id) === source);
+        return Object.assign(document.createElement('option'), {
+          value: source,
+          textContent: productSource(record.sensor_id, record.display_name),
+          title: record.sensor_id,
+        });
+      })
+    );
+  }
+  streamSourceFilter.value = sources.includes(selectedSource) ? selectedSource : '';
   const matches = (group) => activeStreamFilter === 'all' || activeStreamFilter === group;
   streamRegistryBody.append(
-    ...records
-      .filter((record) =>
-        matches(
-          metricPresentation[record.metric]?.group === 'diagnostic'
-            ? 'device'
-            : metricPresentation[record.metric]?.group
-        )
-      )
-      .map(createRegistryRow)
+    ...visibleStreamRecords(
+      records,
+      metricPresentation,
+      activeStreamFilter,
+      streamSourceFilter.value
+    ).map(createRegistryRow)
   );
+  if (!streamCapabilities.checked) return;
   for (const [metric, presentation] of Object.entries(metricPresentation)) {
     if (!matches(presentation.group === 'diagnostic' ? 'device' : presentation.group)) continue;
     if (records.some((record) => record.metric === metric)) continue;
@@ -920,7 +1053,7 @@ function renderStreamRegistry(records) {
       createDefinitionRegistryRow(
         presentation.system,
         presentation.label,
-        `Not observed · ${presentation.unit}`,
+        `${['supply_voltage_v', 'supply_current_ma', 'dma_overrun_count'].includes(metric) ? 'Not instrumented' : presentation.group === 'diagnostic' ? 'Not published' : 'Not observed'} · ${unitLabel(presentation.unit)}`,
         ['environment', 'acoustic', 'electrical'].includes(presentation.group)
           ? 'Unregistered'
           : '—',
@@ -951,11 +1084,14 @@ function renderSelectedContext(record, anchor) {
   const supportedWorkspace =
     activeWorkspace === 'twin' ||
     (activeWorkspace === 'systems' && activeSystemDomain === 'mechanical');
-  const hasSelection = (record !== null || anchor !== null) && supportedWorkspace;
+  if (record !== null || anchor !== null) selectedReference = null;
+  const hasReference = selectedReference !== null && supportedWorkspace;
+  const hasSelection = (record !== null || anchor !== null || hasReference) && supportedWorkspace;
   inspector.hidden = !hasSelection;
   inspector.dataset.empty = String(!hasSelection);
   inspectorEmpty.hidden = hasSelection;
-  inspectorDetail.hidden = !hasSelection;
+  inspectorDetail.hidden = !hasSelection || hasReference;
+  inspectorReference.hidden = !hasReference;
   clearSelectionButton.hidden = !hasSelection;
   workspaceMain.dataset.inspectorOpen = String(hasSelection && activeWorkspace !== 'twin');
   workspaceMain.dataset.inspectorContext = hasSelection ? 'selection' : '';
@@ -973,6 +1109,14 @@ function renderSelectedContext(record, anchor) {
       record !== null && hasSelection && panel.dataset.metric === record.metric
     );
   }
+  if (hasReference) {
+    inspectorKicker.textContent = 'Reference geometry';
+    inspectorTitle.textContent = selectedReference.display_name;
+    analyticsContext.textContent = 'No measurement source';
+    inspectorSwatch.hidden = true;
+    viewer?.setSpatialSelection(null);
+    return;
+  }
   if (!hasSelection) {
     inspectorKicker.textContent = 'Workspace context';
     inspectorTitle.textContent = 'Spatial context';
@@ -986,24 +1130,30 @@ function renderSelectedContext(record, anchor) {
   const presentation = metricPresentation[context.metric];
   inspectorKicker.textContent = 'Selected context';
   inspectorTitle.textContent = presentation.label;
-  inspectorValue.textContent = record === null ? 'Not observed' : String(record.value);
-  inspectorUnit.textContent = context.unit;
+  inspectorValue.textContent =
+    record === null ? 'Not observed' : measurementValue(record.value, record.unit);
+  inspectorUnit.textContent = unitLabel(context.unit);
   const color = record === null ? null : measurementColor(record.metric, record.value);
   inspectorSwatch.hidden = color === null;
   if (color) {
     inspectorSwatch.style.backgroundColor = `#${color.getHexString()}`;
     inspectorSwatch.title = 'Visualization color; no alarm policy configured';
   }
-  inspectorSensor.textContent = productSource(context.sensor_id, presentation.group);
-  inspectorSensor.title = inspectorSensor.textContent;
-  inspectorMetric.textContent = context.metric;
+  inspectorSensor.textContent = productSource(context.sensor_id, context.display_name);
+  inspectorSensor.title = context.sensor_id;
+  inspectorMetric.textContent = presentation.label;
+  inspectorMetric.title = context.metric;
   inspectorAsset.textContent =
-    context.asset_id === 'acceptance-context' ? 'Rack' : context.asset_id;
-  inspectorAsset.title = inspectorAsset.textContent;
+    context.asset_id === electricalDeviceId ? 'Rack Power' : productSource(context.sensor_id);
+  inspectorAsset.title = context.asset_id;
   inspectorQuality.textContent = record?.quality ?? 'Not observed';
   inspectorQuality.dataset.tone = stateTone[record?.quality] ?? 'unknown';
-  inspectorSource.textContent = record?.source_status ?? 'Not observed';
-  inspectorSource.dataset.tone = stateTone[record?.source_status] ?? 'unknown';
+  inspectorSource.textContent = record
+    ? observationState(record) === 'fresh'
+      ? 'Receiving'
+      : observationState(record)
+    : 'Not observed';
+  inspectorSource.dataset.tone = record ? stateTone[observationState(record)] : 'unknown';
   inspectorAcquired.textContent = record?.source_ts ?? 'Not observed';
   inspectorAcquired.title = record?.source_ts ?? '';
   inspectorReceived.textContent = record?.received_at ?? 'Not observed';
@@ -1011,7 +1161,12 @@ function renderSelectedContext(record, anchor) {
   const hasRawValue = record !== null && Object.hasOwn(record, 'raw_value');
   inspectorRawRow.hidden = !hasRawValue;
   if (hasRawValue) inspectorRaw.textContent = String(record.raw_value);
-  inspectorRegistration.textContent = anchor ? 'Located on rack model' : 'Unregistered';
+  inspectorRegistration.textContent =
+    anchor?.registration_state === 'installation_reference'
+      ? 'Reference position · unmeasured'
+      : anchor
+        ? 'Located on rack model'
+        : 'Unregistered';
   inspectorCoordinateRow.hidden = anchor === null;
   inspectorPositionRow.hidden = anchor === null;
   if (anchor) {
@@ -1022,12 +1177,13 @@ function renderSelectedContext(record, anchor) {
     inspectorPosition.title = position;
   }
   analyticsContext.textContent = record
-    ? `${presentation.label} · ${productSource(record.sensor_id, presentation.group)}`
+    ? `${presentation.label} · ${productSource(record.sensor_id, record.display_name)}`
     : 'No measurement selected';
   viewer?.setSpatialSelection(anchor);
 }
 
 function renderHistoryUnavailable(container, message = 'No historical series available') {
+  disposeHistoryChart(container);
   container.replaceChildren();
   const empty = document.createElement('p');
   empty.className = 'history-empty';
@@ -1035,64 +1191,64 @@ function renderHistoryUnavailable(container, message = 'No historical series ava
   container.append(empty);
 }
 
+async function fetchHistory(metric, sensorId, range, signal, maxPoints, options = {}) {
+  const now = options.now ?? Date.now();
+  const identities = [...(liveState?.records ?? []), ...analyticsSources];
+  const assetIds = historyAssetIds(identities, metric, sensorId, observedAssetIds).filter(
+    (id) => !options.assetId || id === options.assetId
+  );
+  const payloads = await Promise.all(
+    assetIds.map(async (assetId) => {
+      const response = await fetch(
+        historyUrl({
+          assetId,
+          metric,
+          sensorId,
+          range,
+          maxPoints,
+          now,
+          analytics: options.analytics,
+        }),
+        {
+          headers: { accept: 'application/json' },
+          signal,
+        }
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+  );
+  return {
+    metric,
+    label: metricPresentation[metric]?.label ?? metric.replaceAll('_', ' '),
+    from: new Date(now - HISTORY_RANGE[range]).toISOString(),
+    to: new Date(now).toISOString(),
+    ...payloads[0],
+    series: payloads.flatMap((payload) =>
+      payload.series.map((series) => ({ ...series, asset_id: payload.asset_id }))
+    ),
+  };
+}
+
 async function loadHistory(container, metric, signal, maxPoints) {
   renderHistoryUnavailable(container, 'Loading canonical history…');
   try {
-    const response = await fetch(
-      historyUrl({
-        assetId,
-        metric,
-        sensorId: container === analyticsHistoryChart ? historySource.value : '',
-        range: activeHistoryRange,
-        maxPoints,
-      }),
-      { headers: { accept: 'application/json' }, signal }
-    );
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    const rendered = renderHistoryChart(container, payload);
-    if (container === analyticsHistoryChart) {
-      analyticsHistoryState.textContent = rendered
-        ? `${activeHistoryRange} · ${payload.series.length} source${payload.series.length === 1 ? '' : 's'}`
-        : 'No historical series available';
-      analyticsBrowserState.textContent = rendered
-        ? `${payload.series.length} historical source${payload.series.length === 1 ? '' : 's'}`
-        : 'No historical series available';
-      analyticsBrowserMetric.textContent = metricPresentation[metric]?.label ?? metric;
-      analyticsBrowserSource.textContent = historySource.value || 'All matching sources';
-      analyticsBrowserRange.textContent = activeHistoryRange;
-    }
+    const payload = await fetchHistory(metric, '', activeHistoryRange, signal, maxPoints);
+    renderHistoryChart(container, payload);
   } catch {
     if (signal.aborted) return;
     renderHistoryUnavailable(container, 'History unavailable');
-    if (container === analyticsHistoryChart) {
-      analyticsHistoryState.textContent = 'History unavailable';
-      analyticsBrowserState.textContent = 'History unavailable';
-    }
   }
 }
 
 function refreshHistory() {
+  window.clearTimeout(analyticsRefreshTimer);
+  analyticsRefreshTimer = undefined;
   historyAbort?.abort();
   historyAbort = new window.AbortController();
   const { signal } = historyAbort;
-  if (!assetId) {
-    if (activeWorkspace === 'analytics') {
-      renderHistoryUnavailable(
-        analyticsHistoryChart,
-        'Configure an asset context to query history.'
-      );
-      analyticsHistoryState.textContent = 'Asset not configured';
-    }
-    return;
-  }
   if (activeWorkspace === 'analytics') {
-    if (!historyMetric.value) {
-      renderHistoryUnavailable(analyticsHistoryChart, 'Select a canonical metric');
-      analyticsHistoryState.textContent = 'Select a metric';
-      return;
-    }
-    void loadHistory(analyticsHistoryChart, historyMetric.value, signal, 1200);
+    void loadAnalytics(signal);
     return;
   }
   if (activeWorkspace !== 'systems' || activeSystemDomain === 'architecture') return;
@@ -1105,24 +1261,319 @@ function refreshHistory() {
   }
 }
 
+function setAnalyticsOptions(select, entries) {
+  const signature = JSON.stringify(entries);
+  if (select.dataset.options === signature) return;
+  const selected = select.value;
+  select.replaceChildren(
+    ...entries.map(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      option.title = value;
+      return option;
+    })
+  );
+  if (entries.some(([value]) => value === selected)) select.value = selected;
+  select.dataset.options = signature;
+}
+
+function analyticsIdentities(records) {
+  const metrics = ANALYTICS_CATEGORIES[historyCategory.value]?.metrics ?? [];
+  return [...records, ...analyticsSources].filter((record) => metrics.includes(record.metric));
+}
+
 function updateHistorySources(records) {
-  const selected = historySource.value;
-  const matching = records.filter((record) => record.metric === historyMetric.value);
-  historySource.replaceChildren();
-  const all = document.createElement('option');
-  all.value = '';
-  all.textContent = 'All matching sources';
-  historySource.append(all);
-  for (const record of matching) {
-    const option = document.createElement('option');
-    option.value = record.sensor_id;
-    option.textContent = record.sensor_id;
-    historySource.append(option);
+  const matching = analyticsIdentities(records);
+  setAnalyticsOptions(
+    historyMetric,
+    ANALYTICS_CATEGORIES[historyCategory.value].metrics
+      .filter((metric) => matching.some((record) => record.metric === metric))
+      .map((metric) => [metric, metricPresentation[metric]?.label ?? metric.replaceAll('_', ' ')])
+  );
+  setAnalyticsOptions(historyAsset, [
+    ['', 'All observed assets'],
+    ...[...new Set(matching.map((r) => r.asset_id))].map((id) => [
+      id,
+      id === electricalDeviceId
+        ? 'Rack Power'
+        : id.startsWith('host-')
+          ? 'Host Network'
+          : id === 'rack-acoustic'
+            ? 'INMP441'
+            : id.replaceAll('-', ' ').replace('sht31', 'SHT31'),
+    ]),
+  ]);
+  setAnalyticsOptions(historySource, [
+    ['', 'All matching sources'],
+    ...[
+      ...new Set(
+        matching
+          .filter((r) => !historyAsset.value || r.asset_id === historyAsset.value)
+          .map((r) => sourceFilterKey(r.sensor_id))
+      ),
+    ].map((key) => {
+      const record = matching.find((entry) => sourceFilterKey(entry.sensor_id) === key);
+      return [key, productSource(record.sensor_id, record.display_name)];
+    }),
+  ]);
+  const counter =
+    historyMetric.value.endsWith('_total') ||
+    [
+      'uptime_s',
+      'reset_reason',
+      'restart_required',
+      'mqtt_connected',
+      'wifi_connected',
+      'net_operation_status',
+    ].includes(historyMetric.value);
+  for (const option of historyAggregation.options)
+    option.disabled = counter && option.value !== 'latest';
+  if (counter) historyAggregation.value = 'latest';
+  renderAnalyticsCurrent(records);
+}
+
+function selectedAnalyticsRecords(records) {
+  const metrics = ANALYTICS_CATEGORIES[historyCategory.value].metrics;
+  return records.filter(
+    (r) =>
+      metrics.includes(r.metric) &&
+      (!historyAsset.value || r.asset_id === historyAsset.value) &&
+      (!historySource.value || sourceFilterKey(r.sensor_id) === historySource.value)
+  );
+}
+
+function renderAnalyticsCurrent(records) {
+  if (activeWorkspace !== 'analytics' || analyticsPaused) return;
+  const matching = selectedAnalyticsRecords(records);
+  const focus = matching.filter((r) => r.metric === historyMetric.value);
+  analyticsCurrent.replaceChildren(
+    ...focus.map((record) => {
+      const card = document.createElement('article');
+      const label = document.createElement('span');
+      label.textContent = productSource(record.sensor_id);
+      const value = document.createElement('strong');
+      value.textContent =
+        Number.isFinite(record.value) && !['boolean', 'code'].includes(record.unit)
+          ? `${measurementValue(record.value, record.unit, 3)} ${unitLabel(record.unit)}`
+          : readingLabel(record);
+      const state = observationState(record);
+      const detail = document.createElement('small');
+      detail.textContent = `${state === 'fresh' ? 'Receiving' : state} · ${analyticsTime(record.source_ts)}`;
+      card.dataset.state = state;
+      card.append(label, value, detail);
+      return card;
+    })
+  );
+  if (historyCategory.value === 'mechanical' && historyMetric.value === 'temperature') {
+    const a = focus.find((record) => record.sensor_id === 'sht31-a-temperature');
+    const b = focus.find((record) => record.sensor_id === 'sht31-b-temperature');
+    if (
+      a &&
+      b &&
+      a.boot_id === b.boot_id &&
+      Math.abs(Date.parse(a.source_ts) - Date.parse(b.source_ts)) <= 250
+    ) {
+      const card = document.createElement('article');
+      const label = document.createElement('span');
+      label.textContent = 'Temperature difference · B − A';
+      const value = document.createElement('strong');
+      value.textContent = `${measurementValue(b.value - a.value, 'degC')} °C`;
+      const detail = document.createElement('small');
+      detail.textContent = `Paired observations · ${analyticsTime(b.source_ts)}`;
+      card.append(label, value, detail);
+      analyticsCurrent.append(card);
+    }
   }
-  historySource.value = matching.some(({ sensor_id }) => sensor_id === selected) ? selected : '';
+  const version = Math.max(0, ...matching.map((r) => r.state_version));
+  const changed = version !== Number(analyticsCurrent.dataset.version ?? 0);
+  analyticsCurrent.dataset.version = version;
+  if (
+    (changed || !analyticsFetchedAt) &&
+    !analyticsRefreshTimer &&
+    !analyticsLoading &&
+    analyticsIdentities(records).length
+  )
+    analyticsRefreshTimer = window.setTimeout(
+      () => {
+        analyticsRefreshTimer = undefined;
+        if (activeWorkspace === 'analytics' && !analyticsPaused) refreshHistory();
+      },
+      Math.max(0, 30_000 - (Date.now() - analyticsFetchedAt))
+    );
+}
+
+function analyticsTime(value) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(value));
+}
+
+function renderAnalyticsDashboard() {
+  analyticsDashboard.querySelector('.history-empty')?.remove();
+  const panels = buildAnalyticsPanels(historyCategory.value, analyticsPayloads, {
+    aggregation: historyAggregation.value,
+  });
+  panels.sort(
+    (a, b) =>
+      Number(b.payload?.metric === historyMetric.value) -
+      Number(a.payload?.metric === historyMetric.value)
+  );
+  const retained = new Set(panels.map((panel) => panel.id));
+  for (const [id, item] of analyticsCharts)
+    if (!retained.has(id)) {
+      disposeHistoryChart(item.chart);
+      item.article.remove();
+      analyticsCharts.delete(id);
+    }
+  for (const [index, panel] of panels.entries()) {
+    let item = analyticsCharts.get(panel.id);
+    if (!item) {
+      const article = document.createElement('article');
+      article.className = 'analytics-panel';
+      article.dataset.panel = panel.id;
+      const heading = document.createElement('h3');
+      const note = document.createElement('p');
+      note.className = 'analytics-panel-note';
+      const chart = document.createElement('div');
+      chart.className = 'history-chart';
+      article.append(heading, note, chart);
+      item = { article, heading, note, chart };
+      analyticsCharts.set(panel.id, item);
+    }
+    item.article.classList.toggle('is-primary', index === 0);
+    item.heading.textContent = panel.title;
+    item.note.textContent = panel.note ?? panel.description ?? '';
+    item.note.hidden = !item.note.textContent;
+    analyticsDashboard.append(item.article);
+    if (panel.payload)
+      renderHistoryChart(item.chart, panel.payload, {
+        valueMode: historyAggregation.value,
+        absoluteScale: historyAbsolute.checked,
+        referenceBand: false,
+      });
+    else renderAnalysisChart(item.chart, panel.option);
+  }
+  if (!panels.length) {
+    analyticsDashboard.replaceChildren();
+    const empty = document.createElement('p');
+    empty.className = 'history-empty';
+    empty.textContent = 'No observations in this time range';
+    analyticsDashboard.append(empty);
+  }
+  analyticsStatistics.replaceChildren(
+    ...analyticsPayloads.flatMap((payload) =>
+      payload.series.map((series) => {
+        const row = document.createElement('tr');
+        const s = series.summary;
+        if (!s) return row;
+        const number = (value) =>
+          Number.isFinite(value)
+            ? `${measurementValue(value, series.unit, 3)} ${unitLabel(series.unit)}`
+            : 'Unavailable';
+        for (const text of [
+          `${metricPresentation[payload.metric]?.label ?? payload.metric.replaceAll('_', ' ')} · ${productSource(series.sensor_id)}`,
+          number(s.minimum),
+          number(s.maximum),
+          number(s.average),
+          number(s.latest),
+          s.count.toLocaleString(),
+          `${analyticsTime(s.first_ts)} – ${analyticsTime(s.last_ts)}`,
+        ]) {
+          const cell = document.createElement('td');
+          cell.textContent = text;
+          row.append(cell);
+        }
+        return row;
+      })
+    )
+  );
+}
+
+async function loadAnalytics(signal) {
+  analyticsTitle.textContent = ANALYTICS_CATEGORIES[historyCategory.value].label;
+  const identities = analyticsIdentities(liveState?.records ?? []);
+  const metrics = ANALYTICS_CATEGORIES[historyCategory.value].metrics.filter((metric) =>
+    identities.some((r) => r.metric === metric)
+  );
+  if (!metrics.length) {
+    analyticsLoading = false;
+    analyticsHistoryState.textContent = 'Waiting for sources';
+    return;
+  }
+  const query = [
+    historyCategory.value,
+    historyAsset.value,
+    historySource.value,
+    activeHistoryRange,
+  ].join('|');
+  if (query !== analyticsLoadedQuery) {
+    analyticsPayloads = [];
+    renderAnalyticsDashboard();
+  }
+  analyticsLoading = true;
+  analyticsHistoryState.textContent = 'Loading history…';
+  const payloads = [];
+  let cursor = 0;
+  const now = Date.now();
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(4, metrics.length) }, async () => {
+        while (cursor < metrics.length) {
+          const metric = metrics[cursor++];
+          const payload = await fetchHistory(metric, '', activeHistoryRange, signal, 1200, {
+            now,
+            analytics: true,
+            assetId: historyAsset.value,
+          });
+          payload.series = payload.series.filter(
+            (series) =>
+              !historySource.value || sourceFilterKey(series.sensor_id) === historySource.value
+          );
+          payloads.push(payload);
+        }
+      })
+    );
+    if (signal.aborted) return;
+    analyticsPayloads = payloads;
+    analyticsLoadedQuery = query;
+    analyticsFetchedAt = Date.now();
+    const count = payloads.reduce(
+      (sum, p) => sum + p.series.reduce((n, s) => n + (s.summary?.count ?? 0), 0),
+      0
+    );
+    analyticsHistoryState.textContent = `${activeHistoryRange} · ${count.toLocaleString()} observations${analyticsPaused ? ' · Paused' : ''}`;
+    analyticsBrowserState.textContent = count
+      ? 'Observed history'
+      : 'No observations in this time range';
+    renderAnalyticsDashboard();
+  } catch {
+    if (!signal.aborted) {
+      analyticsFetchedAt = Date.now();
+      analyticsHistoryState.textContent = 'History unavailable';
+      analyticsBrowserState.textContent = 'History request failed';
+    }
+  } finally {
+    if (historyAbort?.signal === signal) analyticsLoading = false;
+  }
 }
 
 function renderAssets(records) {
+  const electricalRecords = records.filter(
+    (record) =>
+      record.asset_id === electricalDeviceId &&
+      metricPresentation[record.metric]?.group === 'electrical'
+  );
+  for (const target of document.querySelectorAll('[data-electrical-count]'))
+    target.textContent = `${electricalRecords.length} current measurements`;
+  for (const target of document.querySelectorAll('[data-electrical-observation]'))
+    target.textContent = electricalRecords.length ? 'Data available' : 'Not observed';
   const active = hardwareActivity(records);
   const conditions = Object.fromEntries(
     Object.keys(hardwareAssets).map((key) => [
@@ -1182,14 +1633,24 @@ function renderAssets(records) {
   for (const target of hardwareValueTargets) {
     target.textContent = hardwareLiveValue(target.dataset.hardwareValue, records);
   }
-  const powerFactor = records.find(({ sensor_id: id }) => id === 'acceptance-power-factor');
-  const frequency = records.find(({ sensor_id: id }) => id === 'acceptance-frequency');
-  document.querySelector('[data-hardware-secondary="electrical"]').textContent =
-    powerFactor && frequency ? `PF ${powerFactor.value} · ${frequency.value} Hz` : '';
+  const powerFactor = records.find(({ metric }) => metric === 'power_factor_ratio');
+  const frequency = records.find(({ metric }) => metric === 'frequency_hz');
+  document.querySelector('[data-hardware-secondary="electrical"]').textContent = [
+    powerFactor && `PF ${powerFactor.value}`,
+    frequency && `${frequency.value} Hz`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   for (const target of document.querySelectorAll('[data-hardware-power]')) {
     const key = target.dataset.hardwarePower;
-    const voltage = records.find(({ sensor_id: id }) => id === `acceptance-${key}-supply-voltage`);
-    const current = records.find(({ sensor_id: id }) => id === `acceptance-${key}-supply-current`);
+    const voltage = records.find(
+      ({ sensor_id, metric }) =>
+        hardwareAssets[key].sensors.includes(sensor_id) && metric === 'supply_voltage_v'
+    );
+    const current = records.find(
+      ({ sensor_id, metric }) =>
+        hardwareAssets[key].sensors.includes(sensor_id) && metric === 'supply_current_ma'
+    );
     target.textContent = voltage && current ? `${voltage.value} V · ${current.value} mA` : '';
   }
   const acoustic = Object.fromEntries(
@@ -1199,7 +1660,7 @@ function renderAssets(records) {
   );
   const acousticSummary =
     acoustic.sound_rms_dbfs && acoustic.sound_peak_dbfs
-      ? `RMS ${acoustic.sound_rms_dbfs.value} · Peak ${acoustic.sound_peak_dbfs.value} dBFS`
+      ? `RMS ${readingLabel(acoustic.sound_rms_dbfs)} · Peak ${readingLabel(acoustic.sound_peak_dbfs)}`
       : 'RMS + Peak dBFS';
   for (const target of document.querySelectorAll('[data-acoustic-summary]')) {
     target.textContent = acousticSummary;
@@ -1274,9 +1735,7 @@ function hardwareConditionState(key, records, active) {
       decision: 'Inspect',
       label: 'Degraded',
       tone: 'degraded',
-      reasons: [
-        'Current observation is more than two minutes old (DT_DataCenter operational policy)',
-      ],
+      reasons: ['Observation is stale (more than two minutes old)'],
     };
   }
   if (diagnosticMetrics.length && diagnostics.length < diagnosticMetrics.length) {
@@ -1305,19 +1764,21 @@ function hardwareConditionState(key, records, active) {
       diagnosticBaseline.set(identity, record.value);
       if (Date.now() - (recentDiagnosticChanges.get(identity) ?? 0) < 15 * 60_000)
         reasons.push(
-          `${record.metric}: new count observed within 15 min (DT_DataCenter operational policy)`
+          `${metricPresentation[record.metric]?.label ?? record.metric}: new count within 15 min`
         );
     }
-    if (record.metric.endsWith('_ratio') && record.value > 0.01)
+    if (['pm1_error_count', 'pm1_flag_count'].includes(record.metric) && record.value > 0)
+      reasons.push(`${metricPresentation[record.metric].label}: ${record.value} native conditions`);
+    if (['clip_ratio', 'stuck_sample_ratio'].includes(record.metric) && record.value > 0.01)
       reasons.push(
-        `${record.metric}: ${(record.value * 100).toFixed(2)}% (DT_DataCenter operational policy)`
+        `${metricPresentation[record.metric].label}: ${(record.value * 100).toFixed(2)}%`
       );
     if (record.metric === 'supply_voltage_v') {
       const [minimum, maximum] =
         key === 'inmp441' ? [1.62, 3.63] : key.startsWith('sht31-') ? [2.15, 5.5] : [3, 3.6];
       if (record.value < minimum || record.value > maximum)
         reasons.push(
-          `Simulated supply ${record.value} V outside manufacturer reference ${minimum}–${maximum} V`
+          `Supply ${record.value} V outside manufacturer reference ${minimum}–${maximum} V`
         );
     }
   }
@@ -1329,21 +1790,23 @@ function hardwareConditionState(key, records, active) {
     reasons: [
       diagnosticMetrics.length
         ? 'Current diagnostics present; no new counter change observed in this session'
-        : 'Current rack electrical observations present; meter model remains pending',
+        : 'Current electrical observations present',
     ],
   };
 }
 
 function hardwareLiveValue(key, records) {
   if (key === 'esp32-s3') {
-    const uptime = records.find(({ sensor_id: id }) => id === 'acceptance-esp32-uptime');
+    const uptime = records.find(
+      ({ device_id, metric }) => device_id === physicalDeviceId && metric === 'uptime_s'
+    );
     return uptime ? `Uptime ${Math.floor(uptime.value / 86_400)} d` : 'Not observed';
   }
   const metrics = {
-    'sht31-a': ['acceptance-sht31-a-temperature', 'acceptance-sht31-a-humidity'],
-    'sht31-b': ['acceptance-sht31-b-temperature', 'acceptance-sht31-b-humidity'],
-    inmp441: ['acceptance-inmp441-rms', 'acceptance-inmp441-peak'],
-    electrical: ['acceptance-voltage', 'acceptance-current', 'acceptance-active-power'],
+    'sht31-a': hardwareAssets['sht31-a'].sensors,
+    'sht31-b': hardwareAssets['sht31-b'].sensors,
+    inmp441: hardwareAssets.inmp441.sensors,
+    electrical: hardwareAssets.electrical.sensors,
   }[key];
   const values = metrics
     ?.map((sensorId) => records.find(({ sensor_id: candidate }) => candidate === sensorId))
@@ -1351,8 +1814,8 @@ function hardwareLiveValue(key, records) {
   return values?.length
     ? values
         .map(
-          ({ value, unit, metric }) =>
-            `${key === 'inmp441' ? (metric === 'sound_rms_dbfs' ? 'RMS ' : 'Peak ') : ''}${value} ${unit === 'degC' ? '°C' : unit === 'percent_rh' ? '%RH' : unit}`
+          (record) =>
+            `${key === 'inmp441' ? (record.metric === 'sound_rms_dbfs' ? 'RMS ' : 'Peak ') : ''}${readingLabel(record)}`
         )
         .join(' · ')
     : 'Not observed';
@@ -1360,8 +1823,10 @@ function hardwareLiveValue(key, records) {
 
 function diagnosticValue(record) {
   if (!record) return 'Not measured';
+  if (['mqtt_connected', 'wifi_connected', 'restart_required'].includes(record.metric))
+    return readingLabel(record);
   if (record.unit === 'ratio') return `${(record.value * 100).toFixed(2)}%`;
-  return `${record.value} ${record.unit}`;
+  return readingLabel(record);
 }
 
 function renderHardwareDetail(active, conditions, records) {
@@ -1381,6 +1846,26 @@ function renderHardwareDetail(active, conditions, records) {
   hardwareCondition.textContent = condition.label;
   hardwareCondition.dataset.tone = condition.tone;
   hardwareDecision.textContent = condition.decision;
+  hardwareObservations.replaceChildren(
+    ...records
+      .filter(({ sensor_id }) => asset.sensors.includes(sensor_id))
+      .map((record) => {
+        const row = document.createElement('div');
+        const label = document.createElement('dt');
+        label.textContent =
+          metricPresentation[record.metric]?.label ?? productSource(record.sensor_id);
+        const value = document.createElement('dd');
+        value.textContent = observationLabel(record);
+        const time = document.createElement('time');
+        time.dateTime = record.source_ts;
+        time.textContent = analyticsTime(record.source_ts);
+        time.title = record.source_ts;
+        value.append(time);
+        row.append(label, value);
+        return row;
+      })
+  );
+  hardwareObservations.closest('section').hidden = !hardwareObservations.childElementCount;
   const diagnosticRecords = new Map(
     records
       .filter(({ sensor_id: sensorId }) =>
@@ -1432,43 +1917,28 @@ function renderHardwareDetail(active, conditions, records) {
 }
 
 function hardwareScopeSignals(key) {
-  return {
-    'esp32-s3': [
-      ['acceptance-esp32-supply-current', 'supply_current_ma'],
-      ['acceptance-esp32-supply-voltage', 'supply_voltage_v'],
-      ['acceptance-esp32-mqtt-reconnect', 'mqtt_reconnect_count'],
-    ],
-    'sht31-a': [
-      ['acceptance-sht31-a-temperature', 'temperature'],
-      ['acceptance-sht31-a-humidity', 'humidity'],
-      ['acceptance-sht31-a-retry', 'i2c_retry_count'],
-    ],
-    'sht31-b': [
-      ['acceptance-sht31-b-temperature', 'temperature'],
-      ['acceptance-sht31-b-humidity', 'humidity'],
-      ['acceptance-sht31-b-retry', 'i2c_retry_count'],
-    ],
-    inmp441: [
-      ['acceptance-inmp441-rms', 'sound_rms_dbfs'],
-      ['acceptance-inmp441-peak', 'sound_peak_dbfs'],
-      ['acceptance-inmp441-clip-ratio', 'clip_ratio'],
-    ],
-    electrical: [
-      ['acceptance-voltage', 'voltage_v'],
-      ['acceptance-current', 'current_a'],
-      ['acceptance-active-power', 'active_power_w'],
-    ],
-  }[key];
+  if (key === 'electrical')
+    return hardwareAssets.electrical.sensors.map((sensorId) => [
+      sensorId,
+      sensorId.slice('shelly-'.length),
+    ]);
+  if (key === 'sht31-a' || key === 'sht31-b')
+    return [
+      [`${key}-temperature`, 'temperature'],
+      [`${key}-humidity`, 'humidity'],
+    ];
+  if (key === 'inmp441')
+    return [
+      ['rack-sound-rms', 'sound_rms_dbfs'],
+      ['rack-sound-peak', 'sound_peak_dbfs'],
+    ];
+  return [];
 }
 
 async function loadHardwareHistory(container, sensorId, metric, range, signal, maxPoints) {
   renderHistoryUnavailable(container, 'Loading history…');
   try {
-    const response = await fetch(historyUrl({ assetId, metric, sensorId, range, maxPoints }), {
-      signal,
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    renderHistoryChart(container, await response.json());
+    renderHistoryChart(container, await fetchHistory(metric, sensorId, range, signal, maxPoints));
   } catch {
     if (!signal.aborted) renderHistoryUnavailable(container, 'History unavailable');
   }
@@ -1476,47 +1946,62 @@ async function loadHardwareHistory(container, sensorId, metric, range, signal, m
 
 function renderHardwareScope(records) {
   if (!selectedHardwareKey) return;
-  scopeSource.textContent = hardwareAssets[selectedHardwareKey].title;
+  scopeSource.textContent = `${hardwareAssets[selectedHardwareKey].title}${scopeRange === 'live' ? ' · Live · Last 5 min' : ''}`;
+  scopeSource.title =
+    scopeRange === 'live'
+      ? 'Latest known measurement, then observations received while this scope is open.'
+      : '';
   if (!assetId) {
     scopeTraces.textContent = 'Asset context not configured; no historical source is available.';
     return;
   }
   const signals = hardwareScopeSignals(selectedHardwareKey);
   const key = `${selectedHardwareKey}\0${scopeRange}`;
-  for (const [sensorId] of signals) {
+  const created = scopeRequestKey !== key;
+  if (created) {
+    scopeRequest?.abort();
+    scopeRequest = scopeRange === 'live' ? null : new window.AbortController();
+    scopeRequestKey = key;
+    scopeLivePanels.clear();
+    for (const chart of scopeTraces.querySelectorAll('.history-chart')) disposeHistoryChart(chart);
+    scopeTraces.replaceChildren(
+      ...signals.map(([sensorId, metric]) => {
+        const panel = document.createElement('div');
+        panel.className = 'hardware-scope-signal';
+        const title = document.createElement('p');
+        title.textContent = metricPresentation[metric]?.label ?? metric;
+        const value = document.createElement('strong');
+        value.dataset.scopeValue = sensorId;
+        const chart = document.createElement('div');
+        chart.className = 'history-chart';
+        panel.append(title, value, chart);
+        if (scopeRange === 'live')
+          scopeLivePanels.set(sensorId, { chart, buffer: new LiveObservationBuffer() });
+        else
+          void loadHardwareHistory(chart, sensorId, metric, scopeRange, scopeRequest.signal, 240);
+        return panel;
+      })
+    );
+  }
+  for (const [sensorId, metric] of signals) {
+    const record = records.find((entry) => entry.sensor_id === sensorId && entry.metric === metric);
     const label = scopeTraces.querySelector(`[data-scope-value="${sensorId}"]`);
     if (label)
-      label.textContent = diagnosticValue(records.find(({ sensor_id: id }) => id === sensorId));
-  }
-  if (scopeRequestKey === key && (scopeRange !== 'live' || Date.now() - scopeFetchedAt < 60_000))
-    return;
-  scopeRequest?.abort();
-  scopeRequest = new window.AbortController();
-  scopeRequestKey = key;
-  scopeFetchedAt = Date.now();
-  scopeTraces.replaceChildren(
-    ...signals.map(([sensorId, metric]) => {
-      const panel = document.createElement('div');
-      panel.className = 'hardware-scope-signal';
-      const title = document.createElement('p');
-      title.textContent = metricPresentation[metric]?.label ?? metric;
-      const value = document.createElement('strong');
-      value.dataset.scopeValue = sensorId;
-      value.textContent = diagnosticValue(records.find(({ sensor_id: id }) => id === sensorId));
-      const chart = document.createElement('div');
-      chart.className = 'history-chart';
-      panel.append(title, value, chart);
-      void loadHardwareHistory(
-        chart,
-        sensorId,
-        metric,
-        scopeRange === 'live' ? '1h' : scopeRange,
-        scopeRequest.signal,
-        240
+      label.textContent = `${record ? observationLabel(record) : 'Not observed'}${scopeRange === 'live' && connectionState === LIVE_STATE.DISCONNECTED ? ' · Stream disconnected' : ''}`;
+    const live = scopeLivePanels.get(sensorId);
+    if (!live) continue;
+    const changed = live.buffer.append(record, connectionState !== LIVE_STATE.DISCONNECTED);
+    if (created || changed)
+      renderAnalysisChart(
+        live.chart,
+        liveChartOption(live.buffer.points, {
+          sensorId,
+          metric,
+          unit: metricPresentation[metric].unit,
+          label: metricPresentation[metric].label,
+        })
       );
-      return panel;
-    })
-  );
+  }
 }
 
 function scaleGradient(scale) {
@@ -1535,12 +2020,16 @@ function renderMeasurementLegend() {
   measurementLegend.hidden = !showLegend;
   if (!showLegend) return;
 
-  legendMetric.textContent = SPATIAL_METRIC[activeSpatialMetric].label;
+  legendMetric.textContent =
+    activeSpatialMetric === 'temperature' ? 'TEMP' : SPATIAL_METRIC[activeSpatialMetric].label;
+  measurementLegend.querySelector('.legend-unit').hidden = activeSpatialMetric !== 'temperature';
   for (const panel of legendPanels) {
     const active = panel.dataset.measurementLegend === activeSpatialMetric;
     panel.hidden = !active;
     if (!active) continue;
     panel.querySelector('[data-legend-gradient]').style.background = scaleGradient(scale);
+    for (const tick of panel.querySelectorAll('[data-scale-value]'))
+      tick.style.bottom = `${((Number(tick.dataset.scaleValue) - scale.minimum) / (scale.maximum - scale.minimum)) * 100}%`;
   }
 }
 
@@ -1557,29 +2046,56 @@ function renderSpatialState(records) {
     unit: SPATIAL_METRIC[activeSpatialMetric].unit,
     zoneCount: 0,
   };
+  const effectMode = ['temperature', 'acoustic'].includes(activeSpatialMetric);
+  const effectCount = viewer?.sensorEffects?.activeCount ?? 0;
+  sensorEffectState.hidden = activeWorkspace !== 'twin' || !effectMode;
+  sensorEffectState.textContent =
+    viewer?.layerVisibility.anchors === false
+      ? 'Sensors hidden'
+      : activeSpatialMetric === 'acoustic' && viewer?.layerVisibility.soundWaves === false
+        ? 'Sound Waves off'
+        : effectCount === 0
+          ? 'Effects paused · fresh sensor readings required'
+          : activeSpatialMetric === 'temperature'
+            ? viewer?.layerVisibility.airflow === false
+              ? 'Temperature at sensor positions · illustrative local fields'
+              : 'Illustrative airflow · color from nearby sensor readings'
+            : 'Sound activity · microphone level in dBFS';
+  sensorEffectState.title =
+    activeSpatialMetric === 'temperature'
+      ? 'Temperature is observed only at the sensor positions. The 0.30 m visual radius and upward motion do not represent measured coverage or airflow.'
+      : 'Rings indicate digital microphone activity, not a sound-pressure waveform or coverage radius.';
   spatialLayerMetric.textContent = 'Measurement context';
   legendMetric.textContent = result.label;
   measurementZoneState.textContent =
-    result.zoneCount === 0
-      ? 'Unavailable'
-      : `${result.zoneCount} measured point${result.zoneCount === 1 ? '' : 's'}`;
+    result.zonesApplicable === false
+      ? result.count === 0
+        ? 'Not observed'
+        : `${result.moduleCount} observed module${result.moduleCount === 1 ? '' : 's'}`
+      : result.zoneCount === 0
+        ? 'Unavailable'
+        : `${result.zoneCount} measured point${result.zoneCount === 1 ? '' : 's'}`;
   for (const summary of zoneSummaries) summary.textContent = measurementZoneState.textContent;
 
   let quiet = false;
-  if (result.anchorCount === 0) {
+  if (!presentation.zones && groupObserved) {
+    quiet = true;
+  } else if (!presentation.zones) {
+    spatialLayerState.textContent = `${result.label} not observed`;
+    spatialLayerMessage.textContent = 'No current measurements available.';
+  } else if (result.anchorCount === 0) {
     spatialLayerState.textContent = 'Spatial measurement unavailable';
     spatialLayerMessage.textContent = MEASUREMENT_SCALE[activeSpatialMetric]
       ? `No registered source with current ${result.label.toLowerCase()} measurement.`
       : 'Register a physical sensor position to enable this layer.';
-  } else if (!presentation.zones && groupObserved) {
-    quiet = true;
-  } else if (!presentation.zones) {
-    spatialLayerState.textContent = `${result.label} not observed`;
-    spatialLayerMessage.textContent = 'No matching canonical current measurement is available.';
   } else if (result.count === 0) {
     spatialLayerState.textContent = 'Registered source not observed';
     spatialLayerMessage.textContent = 'No matching canonical current measurement is available.';
-  } else if (SPATIAL_METRIC[activeSpatialMetric].zones && result.zoneCount === 0) {
+  } else if (
+    result.zonesApplicable !== false &&
+    SPATIAL_METRIC[activeSpatialMetric].zones &&
+    result.zoneCount === 0
+  ) {
     spatialLayerState.textContent = 'Spatial surface unavailable';
     spatialLayerMessage.textContent = 'The registered point could not be projected onto geometry.';
   } else {
@@ -1627,31 +2143,56 @@ function selectHardware(event) {
 }
 
 function renderMeasurements(records) {
-  const simulationPresent = records.some(({ device_id: id }) => id?.startsWith('acceptance-'));
-  registrationGroup.hidden = simulationPresent;
-  spatialReadinessGroup.hidden = simulationPresent;
+  registrationGroup.hidden = physicalRackModel;
+  spatialReadinessGroup.hidden = physicalRackModel && activeWorkspace === 'twin';
+  displayedFreshness = records.map((record) => observationState(record)).join(',');
+  twinSources.replaceChildren();
+  const metrics = SPATIAL_METRIC[activeSpatialMetric].metrics ?? [activeSpatialMetric];
+  for (const record of records.filter(({ metric }) => metrics.includes(metric))) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.selectKey = currentStateKey(record);
+    button.dataset.currentKey = button.dataset.selectKey;
+    button.setAttribute('aria-pressed', String(button.dataset.selectKey === selectedKey));
+    button.title = record.sensor_id;
+    button.append(
+      Object.assign(document.createElement('span'), {
+        textContent: productSource(record.sensor_id),
+      }),
+      Object.assign(document.createElement('small'), {
+        textContent: `${metricPresentation[record.metric].label} · ${observationLabel(record)}`,
+      })
+    );
+    twinSources.append(button);
+  }
+  if (!twinSources.childElementCount)
+    twinSources.append(
+      Object.assign(document.createElement('p'), {
+        className: 'empty-state',
+        textContent: 'Not observed',
+      })
+    );
   const summaries = {
     temperature: records
       .filter(({ metric }) => metric === 'temperature')
       .sort((a, b) => a.sensor_id.localeCompare(b.sensor_id))
       .map(
-        ({ value }, index) => `${String.fromCharCode(65 + index)} ${Number(value).toFixed(1)} °C`
+        (record) =>
+          `${productSource(record.sensor_id).replace('SHT31 ', '')} ${readingLabel(record)}`
       )
       .join(' · '),
     humidity: records
       .filter(({ metric }) => metric === 'humidity')
       .sort((a, b) => a.sensor_id.localeCompare(b.sensor_id))
       .map(
-        ({ value }, index) => `${String.fromCharCode(65 + index)} ${Number(value).toFixed(1)} %RH`
+        (record) =>
+          `${productSource(record.sensor_id).replace('SHT31 ', '')} ${readingLabel(record)}`
       )
       .join(' · '),
   };
   const rms = records.find(({ metric }) => metric === 'sound_rms_dbfs');
   const peak = records.find(({ metric }) => metric === 'sound_peak_dbfs');
-  summaries.acoustic = [
-    rms && `RMS ${Number(rms.value).toFixed(2)} dBFS`,
-    peak && `Peak ${Number(peak.value).toFixed(2)} dBFS`,
-  ]
+  summaries.acoustic = [rms && `RMS ${readingLabel(rms)}`, peak && `Peak ${readingLabel(peak)}`]
     .filter(Boolean)
     .join('\n');
   const electrical = new Map(records.map(({ metric, value }) => [metric, Number(value)]));
@@ -1660,11 +2201,34 @@ function renderMeasurements(records) {
       electrical.has('current_a') &&
       `${electrical.get('voltage_v').toFixed(1)} V · ${electrical.get('current_a').toFixed(1)} A`,
     electrical.has('active_power_w') &&
-      electrical.has('power_factor_ratio') &&
-      `${electrical.get('active_power_w').toFixed(0)} W · PF ${electrical.get('power_factor_ratio').toFixed(2)}`,
+      `${electrical.get('active_power_w').toFixed(1)} W${electrical.has('power_factor_ratio') ? ` · PF ${electrical.get('power_factor_ratio').toFixed(2)}` : ''}`,
   ]
     .filter(Boolean)
     .join('\n');
+  summaries.telecommunications = records
+    .filter(({ metric }) =>
+      [
+        'net_receive_throughput_bytes_per_second',
+        'net_transmit_throughput_bytes_per_second',
+      ].includes(metric)
+    )
+    .map(
+      (record) =>
+        `${record.metric.startsWith('net_receive') ? 'Rx' : 'Tx'} ${Number(record.value).toFixed(1)} B/s`
+    )
+    .join('\n');
+  const networkRecords = records.filter(
+    ({ metric }) => metricPresentation[metric]?.group === 'telecommunications'
+  );
+  const networkState = networkRecords.length
+    ? [...new Set(networkRecords.map((record) => observationState(record)))]
+        .filter((state) => state !== 'fresh')
+        .join(', ')
+    : '';
+  for (const target of document.querySelectorAll('[data-network-count]'))
+    target.textContent = networkRecords.length
+      ? `${networkRecords.length} measurements${networkState ? ` · ${networkState}` : ''}`
+      : 'Not observed';
   for (const target of document.querySelectorAll('[data-twin-summary]')) {
     target.textContent = summaries[target.dataset.twinSummary] || 'Not observed';
   }
@@ -1730,15 +2294,24 @@ function renderMeasurements(records) {
   renderConnectionStatus(records);
 }
 
-for (const element of assetContexts)
-  element.textContent = assetId === 'acceptance-context' ? 'Rack' : assetId || 'Not configured';
+for (const element of assetContexts) {
+  element.textContent =
+    assetId === 'dt-datacenter-rack'
+      ? 'Laboratory Rack'
+      : assetId
+        ? 'Unnamed asset'
+        : 'Not configured';
+  element.title = assetId;
+}
 try {
   liveState = new LiveCurrentState({
     assetId,
+    assetIds: observedAssetIds,
     onRecordsChange: renderMeasurements,
     onConnectionChange: (state) => {
       connectionState = state;
       renderConnectionStatus(liveState?.records ?? []);
+      if (scopeRange === 'live') renderHardwareScope(liveState?.records ?? []);
     },
   });
   liveState.start();
@@ -1852,23 +2425,30 @@ async function confirmRegistration() {
 function clearSelection() {
   const clearedKey = selectedKey;
   selectedKey = null;
+  selectedReference = null;
   renderMeasurements(liveState?.records ?? []);
   focusCurrentKey(clearedKey);
 }
 
 function changeLayer(event) {
-  const input = event.target.closest('[data-layer]');
+  const input = event.target.closest('input');
   if (input === null) return;
-  viewer?.setLayerVisibility(input.dataset.layer, input.checked);
+  if (input.dataset.layer) viewer?.setLayerVisibility(input.dataset.layer, input.checked);
+  else if (input === inspectionControl) viewer?.setInspectionMode(input.checked);
+  else if (input === surfaceModeControl)
+    viewer?.setSurfaceMode(input.checked ? SURFACE_MODE.CONTRAST : SURFACE_MODE.TEXTURED);
+  renderSpatialState(liveState?.records ?? []);
 }
 
-function changeSurfaceMode() {
-  activeSurfaceMode =
-    activeSurfaceMode === SURFACE_MODE.TEXTURED ? SURFACE_MODE.CONTRAST : SURFACE_MODE.TEXTURED;
-  viewer?.setSurfaceMode(activeSurfaceMode);
-  const contrast = activeSurfaceMode === SURFACE_MODE.CONTRAST;
-  surfaceModeButton.setAttribute('aria-pressed', String(contrast));
-  surfaceModeButton.title = contrast ? 'Textured surface' : 'Contrast surface';
+function closeLayersOutside(event) {
+  if (layerControl.open && !layerControl.contains(event.target)) layerControl.open = false;
+}
+
+function closeLayersOnEscape(event) {
+  if (event.key !== 'Escape' || !layerControl.open) return;
+  layerControl.open = false;
+  layerControl.querySelector('summary').focus();
+  event.preventDefault();
 }
 
 function changeMetric(event) {
@@ -1880,10 +2460,19 @@ function changeMetric(event) {
     const selected = (liveState?.records ?? []).find(
       (record) => currentStateKey(record) === selectedKey
     );
+    const moduleId = spatialAnchors.find(
+      (anchor) => spatialAnchorKey(anchor) === selectedKey
+    )?.module_id;
     const replacement = (liveState?.records ?? []).find(
       (record) =>
         record.asset_id === selected?.asset_id &&
-        record.sensor_id === selected?.sensor_id &&
+        (record.sensor_id === selected?.sensor_id ||
+          (moduleId &&
+            spatialAnchors.some(
+              (anchor) =>
+                anchor.module_id === moduleId &&
+                spatialAnchorKey(anchor) === currentStateKey(record)
+            ))) &&
         (SPATIAL_METRIC[activeSpatialMetric].metrics ?? [activeSpatialMetric]).includes(
           record.metric
         )
@@ -1926,23 +2515,36 @@ function changeHistoryQuery(event) {
     }
   }
   updateHistorySources(liveState?.records ?? []);
+  if (['history-metric', 'history-aggregation', 'history-absolute'].includes(event.target.id)) {
+    renderAnalyticsDashboard();
+    return;
+  }
   refreshHistory();
 }
 
-for (const [metric, presentation] of Object.entries(metricPresentation)) {
+for (const [category, presentation] of Object.entries(ANALYTICS_CATEGORIES)) {
   const option = document.createElement('option');
-  option.value = metric;
-  option.textContent = `${presentation.system} · ${presentation.label}`;
-  historyMetric.append(option);
+  option.value = category;
+  option.textContent = presentation.label;
+  historyCategory.append(option);
 }
-historyMetric.value = 'temperature';
+historyCategory.value = 'mechanical';
 
 synchronizeNavigation();
 renderMeasurements(liveState?.records ?? []);
+refreshHistory();
 void initializeSpatialRepresentation();
 window.addEventListener('hashchange', navigateWorkspace);
 document.querySelector('#stream-browser').addEventListener('click', changeStreamFilter);
+streamCapabilities.addEventListener('change', () => renderStreamRegistry(liveState?.records ?? []));
+streamSourceFilter.addEventListener('change', () => renderStreamRegistry(liveState?.records ?? []));
 streamRegistryBody.addEventListener('click', handleRegistryAction);
+twinSources.addEventListener('click', handleRegistryAction);
+const freshnessTimer = window.setInterval(() => {
+  const records = liveState?.records ?? [];
+  if (records.map((record) => observationState(record)).join(',') !== displayedFreshness)
+    renderMeasurements(records);
+}, 10_000);
 hardwareTopology.addEventListener('click', selectHardware);
 for (const button of scopeRanges)
   button.addEventListener('click', () => {
@@ -1952,7 +2554,7 @@ for (const button of scopeRanges)
     renderHardwareScope(liveState?.records ?? []);
   });
 hardwareTopology.addEventListener('keydown', (event) => {
-  if (!['Enter', ' '].includes(event.key)) return;
+  if (!['Enter', ' '].includes(event.key) || !event.target.closest('[data-hardware-node]')) return;
   event.preventDefault();
   selectHardware(event);
 });
@@ -1963,8 +2565,9 @@ hardwareTopology.addEventListener('pointerover', (event) =>
 );
 hardwareTopology.addEventListener('pointerout', () => setHardwareFocus(selectedHardwareKey));
 clearSelectionButton.addEventListener('click', clearSelection);
-surfaceModeButton.addEventListener('click', changeSurfaceMode);
 layerControl.addEventListener('change', changeLayer);
+document.addEventListener('pointerdown', closeLayersOutside);
+document.addEventListener('keydown', closeLayersOnEscape);
 workspaceBrowser.addEventListener('change', changeMetric);
 domainSelector.addEventListener('click', changeSystemDomain);
 registrationSource.addEventListener('change', changeRegistrationSource);
@@ -1974,6 +2577,19 @@ confirmRegistrationButton.addEventListener('click', confirmRegistration);
 cancelRegistrationButton.addEventListener('click', cancelRegistration);
 historyQuery.addEventListener('change', changeHistoryQuery);
 historyQuery.addEventListener('click', changeHistoryQuery);
+historyLive.addEventListener('click', () => {
+  analyticsPaused = !analyticsPaused;
+  historyLive.setAttribute('aria-pressed', String(!analyticsPaused));
+  historyLive.textContent = analyticsPaused ? 'Resume live updates' : 'Pause live updates';
+  window.clearTimeout(analyticsRefreshTimer);
+  analyticsRefreshTimer = undefined;
+  if (analyticsPaused) historyAbort?.abort();
+  else {
+    renderAnalyticsCurrent(liveState?.records ?? []);
+    refreshHistory();
+  }
+  if (analyticsPaused) analyticsHistoryState.textContent += ' · Paused';
+});
 
 window.addEventListener(
   'pagehide',
@@ -1981,10 +2597,14 @@ window.addEventListener(
     window.removeEventListener('hashchange', navigateWorkspace);
     document.querySelector('#stream-browser').removeEventListener('click', changeStreamFilter);
     streamRegistryBody.removeEventListener('click', handleRegistryAction);
+    twinSources.removeEventListener('click', handleRegistryAction);
+    window.clearInterval(freshnessTimer);
     hardwareTopology.removeEventListener('click', selectHardware);
+    disposeHardwareSchematic();
     clearSelectionButton.removeEventListener('click', clearSelection);
-    surfaceModeButton.removeEventListener('click', changeSurfaceMode);
     layerControl.removeEventListener('change', changeLayer);
+    document.removeEventListener('pointerdown', closeLayersOutside);
+    document.removeEventListener('keydown', closeLayersOnEscape);
     workspaceBrowser.removeEventListener('change', changeMetric);
     domainSelector.removeEventListener('click', changeSystemDomain);
     registrationSource.removeEventListener('change', changeRegistrationSource);
@@ -1995,6 +2615,11 @@ window.addEventListener(
     historyQuery.removeEventListener('change', changeHistoryQuery);
     historyQuery.removeEventListener('click', changeHistoryQuery);
     historyAbort?.abort();
+    scopeRequest?.abort();
+    scopeLivePanels.clear();
+    window.clearTimeout(analyticsRefreshTimer);
+    for (const { chart } of analyticsCharts.values()) disposeHistoryChart(chart);
+    for (const chart of document.querySelectorAll('.history-chart')) disposeHistoryChart(chart);
     spatialRegistrationAbort.abort();
     liveState?.destroy();
     viewer?.destroy();

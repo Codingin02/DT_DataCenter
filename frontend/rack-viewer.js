@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createRackModel, rackSourcePlacements, setRackInspection } from './rack-model.js';
+import { createSensorEffects, updateSensorEffects, stepSensorEffects } from './sensor-effects.js';
 
 export const MODEL_STATE = Object.freeze({
   UNCONFIGURED: 'MODEL_UNCONFIGURED',
@@ -43,6 +45,29 @@ export const SPATIAL_METRIC = Object.freeze({
       'power_factor_ratio',
       'frequency_hz',
       'energy_wh_total',
+      'returned_energy_wh_total',
+      'pm1_error_count',
+      'pm1_flag_count',
+    ]),
+    unit: null,
+    zones: false,
+  }),
+  telecommunications: Object.freeze({
+    label: 'Telecommunications',
+    metrics: Object.freeze([
+      'net_bytes_received_total',
+      'net_bytes_sent_total',
+      'net_packets_received_total',
+      'net_packets_sent_total',
+      'net_receive_throughput_bytes_per_second',
+      'net_transmit_throughput_bytes_per_second',
+      'net_packets_received_errors_total',
+      'net_packets_outbound_errors_total',
+      'net_packets_received_discarded_total',
+      'net_packets_outbound_discarded_total',
+      'net_current_bandwidth_bytes',
+      'net_link_utilization_ratio',
+      'net_operation_status',
     ]),
     unit: null,
     zones: false,
@@ -60,14 +85,14 @@ export const SPATIAL_METRIC = Object.freeze({
 
 export const MEASUREMENT_SCALE = Object.freeze({
   temperature: Object.freeze({
-    maximum: 36,
-    minimum: 9,
+    maximum: 40,
+    minimum: 10,
     stops: Object.freeze([
-      Object.freeze({ color: 0x2b659c, value: 9 }),
-      Object.freeze({ color: 0x2e9bb2, value: 18 }),
-      Object.freeze({ color: 0x4d9b65, value: 22.5 }),
-      Object.freeze({ color: 0xd0aa3f, value: 27 }),
-      Object.freeze({ color: 0xc87332, value: 36 }),
+      Object.freeze({ color: 0x456d8b, value: 10 }),
+      Object.freeze({ color: 0x648d7c, value: 18 }),
+      Object.freeze({ color: 0xc0a15c, value: 27 }),
+      Object.freeze({ color: 0xc27b4f, value: 35 }),
+      Object.freeze({ color: 0xa84d46, value: 40 }),
     ]),
   }),
   humidity: Object.freeze({
@@ -141,6 +166,7 @@ export function parseRackModelConfig(config, baseUrl) {
   if (config === null || typeof config !== 'object') {
     throw new TypeError('Rack model configuration must be an object.');
   }
+  if (config.kind === 'rack') return { kind: 'rack', layout: config.layout ?? {} };
   const value = typeof config.url === 'string' ? config.url.trim() : '';
   if (value === '') return null;
 
@@ -185,6 +211,44 @@ export function spatialAnchorKey(value) {
   return JSON.stringify([value?.asset_id ?? '', value?.sensor_id ?? '']);
 }
 
+function isVisible(object) {
+  for (let parent = object; parent; parent = parent.parent) if (!parent.visible) return false;
+  return true;
+}
+
+export function pickSpatialSensor(raycaster, modelRoot, markers) {
+  const hit = raycaster
+    .intersectObjects([...markers], true)
+    .find(({ object }) => isVisible(object) && object.userData.spatialContext);
+  if (!hit) return null;
+  if (modelRoot?.userData.rackLayout) {
+    const obstruction = raycaster
+      .intersectObject(modelRoot, true)
+      .find(({ object }) => isVisible(object) && object.isMesh && !object.material.transparent);
+    if (obstruction && obstruction.distance < hit.distance - 0.0001) return null;
+  }
+  return hit.object.userData.spatialContext;
+}
+
+export function pickRackReference(raycaster, modelRoot) {
+  if (!modelRoot?.userData.rackLayout) return null;
+  const hit = raycaster.intersectObject(modelRoot, true).find(({ object }) => {
+    return isVisible(object) && object.isMesh && !object.material.transparent;
+  });
+  for (let object = hit?.object; object; object = object.parent) {
+    if (!object.userData.referenceOnly || !object.userData.displayName) continue;
+    const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
+    return {
+      object_id: object.name,
+      display_name: object.userData.displayName,
+      dimensional_authority: object.userData.dimensionalAuthority,
+      dimensions: size.toArray(),
+      photo_evidence: object.userData.photoEvidence ?? [],
+    };
+  }
+  return null;
+}
+
 export function normalizeSpatialAnchors(anchors) {
   if (!Array.isArray(anchors)) throw new TypeError('Spatial anchors must be an array.');
   const normalized = anchors.map((anchor) => {
@@ -204,22 +268,36 @@ export function normalizeSpatialAnchors(anchors) {
     if (anchor.unit !== SPATIAL_METRIC[metric].unit) {
       throw new TypeError('Spatial anchor unit does not match its metric.');
     }
-    if (!/^[1-9][0-9]*$/.test(String(anchor.position_version))) {
+    const installationReference = anchor.registration_state === 'installation_reference';
+    if (!installationReference && !/^[1-9][0-9]*$/.test(String(anchor.position_version))) {
       throw new TypeError('Spatial anchor position_version is invalid.');
     }
-    if (anchor.registration_state !== 'reference_geometry') {
-      throw new TypeError('Spatial anchor registration_state must be reference_geometry.');
+    if (!installationReference && anchor.registration_state !== 'reference_geometry') {
+      throw new TypeError(
+        'Spatial anchor registration_state must be reference_geometry or installation_reference.'
+      );
     }
+    if (
+      installationReference &&
+      (anchor.coordinate_system_id !== 'rack-model-local' ||
+        !['sht31-a', 'sht31-b', 'inmp441'].includes(anchor.module_id) ||
+        anchor.position_verified !== false ||
+        anchor.position_version !== null)
+    )
+      throw new TypeError('Installation references must be unmeasured rack module positions.');
     return {
       asset_id: assetId,
       coordinate_system_id: coordinateSystemId,
       metric,
       position: vector(anchor.position, null, 'position'),
       position_verified: anchor.position_verified === true,
-      position_version: String(anchor.position_version),
+      position_version: installationReference ? null : String(anchor.position_version),
       registration_state: 'reference_geometry',
       sensor_id: sensorId,
       unit: SPATIAL_METRIC[metric].unit,
+      ...(installationReference
+        ? { module_id: anchor.module_id, registration_state: 'installation_reference' }
+        : {}),
     };
   });
   if (new Set(normalized.map(spatialAnchorKey)).size !== normalized.length) {
@@ -239,7 +317,9 @@ export function createTelemetryOverlay() {
 export function modelLocalIntersection(raycaster, pointer, camera, modelRoot) {
   if (modelRoot === null) return null;
   raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(modelRoot, true).find(({ object }) => object.isMesh);
+  const hit = raycaster
+    .intersectObject(modelRoot, true)
+    .find(({ object }) => object.isMesh && isVisible(object));
   return hit ? modelRoot.worldToLocal(hit.point.clone()).toArray() : null;
 }
 
@@ -503,12 +583,14 @@ export class RackViewer {
     onStateChange = () => {},
     performanceProfile = PERFORMANCE_PROFILE.BALANCED,
     onSpatialSelect = () => {},
-    onRegistrationPoint = () => {}
+    onRegistrationPoint = () => {},
+    onReferenceSelect = () => {}
   ) {
     this.canvas = canvas;
     this.onStateChange = onStateChange;
     this.onSpatialSelect = onSpatialSelect;
     this.onRegistrationPoint = onRegistrationPoint;
+    this.onReferenceSelect = onReferenceSelect;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xdce3e7);
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
@@ -533,7 +615,20 @@ export class RackViewer {
     this.telemetryOverlayRoot = telemetryOverlay.root;
     this.measurementZoneRoot = telemetryOverlay.zoneRoot;
     this.scene.add(this.telemetryOverlayRoot);
-    this.layerVisibility = { anchors: true, geometry: true, zones: true };
+    this.layerVisibility = {
+      anchors: true,
+      geometry: true,
+      zones: true,
+      airflow: true,
+      soundWaves: true,
+    };
+    this.effectsActive = true;
+    this.sensorEffects = null;
+    this.lastFrameTime = null;
+    this.reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    this.reducedMotion = this.reducedMotionQuery.matches;
+    this.reducedMotionQuery.addEventListener('change', this.handleReducedMotion);
+    this.canvas.ownerDocument.addEventListener('visibilitychange', this.handleEffectVisibility);
     this.activeSpatialMetric = 'temperature';
     this.selectedSpatialKey = null;
     this.registrationEnabled = false;
@@ -546,6 +641,7 @@ export class RackViewer {
     this.loadRevision = 0;
     this.destroyed = false;
     this.surfaceMode = SURFACE_MODE.TEXTURED;
+    this.inspectionMode = true;
     this.contrastMaterials = new Map();
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -575,11 +671,52 @@ export class RackViewer {
 
   requestRender = () => {
     if (this.destroyed || this.frameHandle !== null) return;
-    this.frameHandle = requestAnimationFrame(() => {
+    this.frameHandle = requestAnimationFrame((timestamp) => {
       this.frameHandle = null;
+      const delta =
+        this.lastFrameTime === null
+          ? 0
+          : Math.min(Math.max((timestamp - this.lastFrameTime) / 1000, 0), 0.1);
+      this.lastFrameTime = timestamp;
+      const animate = this.sensorEffects ? stepSensorEffects(this.sensorEffects, delta) : false;
       this.renderer.render(this.scene, this.camera);
+      if (animate) this.requestRender();
+      else this.lastFrameTime = null;
     });
   };
+
+  handleReducedMotion = (event) => {
+    this.reducedMotion = event.matches;
+    this.synchronizeSensorEffects();
+  };
+
+  handleEffectVisibility = () => this.synchronizeSensorEffects();
+
+  setEffectsActive(active) {
+    this.effectsActive = Boolean(active);
+    this.lastFrameTime = null;
+    this.synchronizeSensorEffects();
+  }
+
+  synchronizeSensorEffects(now = Date.now()) {
+    if (!this.sensorEffects) return;
+    updateSensorEffects(
+      this.sensorEffects,
+      this.telemetryAnchors,
+      this.activeSpatialMetric,
+      {
+        active: this.effectsActive !== false && !this.canvas.ownerDocument.hidden,
+        sensors: this.layerVisibility.anchors,
+        zones: this.layerVisibility.zones,
+        airflow: this.layerVisibility.airflow !== false,
+        soundWaves: this.layerVisibility.soundWaves !== false,
+        reducedMotion: this.reducedMotion === true,
+        now,
+      },
+      measurementColor
+    );
+    this.requestRender();
+  }
 
   resize = () => {
     const width = Math.max(1, this.canvas.clientWidth);
@@ -591,16 +728,13 @@ export class RackViewer {
   };
 
   rememberRegistrationPointer = (event) => {
-    if (this.registrationEnabled) {
-      this.registrationPointerStart = new THREE.Vector2(event.clientX, event.clientY);
-    }
+    this.registrationPointerStart = new THREE.Vector2(event.clientX, event.clientY);
   };
 
   handleCanvasClick = (event) => {
     const bounds = this.canvas.getBoundingClientRect();
     if (bounds.width === 0 || bounds.height === 0) return;
     if (
-      this.registrationEnabled &&
       this.registrationPointerStart?.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 5
     ) {
       return;
@@ -621,9 +755,15 @@ export class RackViewer {
       return;
     }
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hit = this.raycaster.intersectObjects(this.telemetryAnchorRoot.children, true)[0];
-    if (hit?.object.userData.spatialContext) {
-      this.onSpatialSelect(hit.object.userData.spatialContext);
+    const context = pickSpatialSensor(
+      this.raycaster,
+      this.modelRoot,
+      this.telemetryMarkers.values()
+    );
+    if (context) this.onSpatialSelect(context);
+    else {
+      const reference = pickRackReference(this.raycaster, this.modelRoot);
+      if (reference) this.onReferenceSelect(reference);
     }
   };
 
@@ -671,9 +811,19 @@ export class RackViewer {
   setLayerVisibility(layer, visible) {
     if (!Object.hasOwn(this.layerVisibility, layer)) throw new TypeError('Unknown viewer layer.');
     this.layerVisibility[layer] = Boolean(visible);
-    if (layer === 'geometry' && this.modelRoot !== null) this.modelRoot.visible = Boolean(visible);
+    if (layer === 'geometry' && this.modelRoot !== null) {
+      if (this.modelRoot.userData.rackLayout) {
+        for (const component of this.modelRoot.children)
+          if (component.name !== 'sensors') component.visible = Boolean(visible);
+      } else this.modelRoot.visible = Boolean(visible);
+    }
     if (layer === 'anchors') this.telemetryAnchorRoot.visible = Boolean(visible);
+    if (layer === 'anchors') {
+      const sensors = this.modelRoot?.getObjectByName('sensors');
+      if (sensors) sensors.visible = Boolean(visible);
+    }
     if (layer === 'zones') this.measurementZoneRoot.visible = Boolean(visible);
+    this.synchronizeSensorEffects();
     this.requestRender();
   }
 
@@ -697,6 +847,7 @@ export class RackViewer {
     this.surfaceMode ??= SURFACE_MODE.TEXTURED;
     root.traverse((object) => {
       if (!object.isMesh) return;
+      if (object.userData.preserveSurface || object.material.transparent) return;
       object.userData.originalSurfaceMaterial ??= object.material;
       if (this.surfaceMode === SURFACE_MODE.TEXTURED) {
         object.material = object.userData.originalSurfaceMaterial;
@@ -717,10 +868,22 @@ export class RackViewer {
     return this.surfaceMode;
   }
 
+  setInspectionMode(enabled) {
+    this.inspectionMode = Boolean(enabled);
+    setRackInspection(this.modelRoot, this.inspectionMode);
+    this.requestRender();
+    return this.inspectionMode;
+  }
+
+  installationPlacements(sources) {
+    return rackSourcePlacements(sources, this.modelRoot?.userData.rackLayout ?? {});
+  }
+
   setSpatialAnchors(anchors = []) {
     const normalized = normalizeSpatialAnchors(anchors);
     clearOwnedGroup(this.telemetryAnchorRoot);
     clearOwnedGroup(this.measurementZoneRoot);
+    this.sensorEffects = null;
     this.telemetryAnchors.clear();
     this.telemetryMarkers.clear();
     for (const anchor of normalized) {
@@ -728,16 +891,20 @@ export class RackViewer {
       const markerKey = physicalAnchorKey(anchor);
       let marker = this.telemetryMarkers.get(markerKey) ?? null;
       if (marker === null && this.modelRoot !== null) {
-        marker = createSensorMarker(
-          this.modelRoot,
-          position,
-          this.modelSize,
-          this.modelRadius,
-          this.canvas.ownerDocument
-        );
+        marker =
+          anchor.registration_state === 'installation_reference'
+            ? (this.modelRoot.getObjectByName(anchor.module_id) ?? null)
+            : createSensorMarker(
+                this.modelRoot,
+                position,
+                this.modelSize,
+                this.modelRadius,
+                this.canvas.ownerDocument
+              );
         if (marker !== null) {
+          marker.scale.setScalar(1);
           this.telemetryMarkers.set(markerKey, marker);
-          this.telemetryAnchorRoot.add(marker);
+          if (!marker.userData.sensorModule) this.telemetryAnchorRoot.add(marker);
         }
       }
       this.telemetryAnchors.set(spatialAnchorKey(anchor), {
@@ -749,6 +916,10 @@ export class RackViewer {
       });
     }
     this.selectedSpatialKey = null;
+    if (this.modelRoot?.userData.rackLayout) {
+      this.sensorEffects = createSensorEffects(this.modelRoot, normalized);
+      this.measurementZoneRoot.add(this.sensorEffects.root);
+    }
     this.requestRender();
     return normalized.length;
   }
@@ -788,7 +959,10 @@ export class RackViewer {
     let zoneCount = 0;
 
     for (const marker of this.telemetryMarkers.values()) {
-      marker.visible = false;
+      marker.visible = marker.userData.sensorModule === true;
+      marker.traverse((object) => {
+        delete object.userData.spatialContext;
+      });
       marker.userData.accent.material.color.copy(ANCHOR_COLOR);
     }
 
@@ -799,7 +973,9 @@ export class RackViewer {
       if (metricMatches && entry.marker !== null) {
         entry.marker.visible = true;
         entry.marker.userData.spatialContext = entry.anchor;
-        for (const child of entry.marker.children) child.userData.spatialContext = entry.anchor;
+        entry.marker.traverse((object) => {
+          object.userData.spatialContext = entry.anchor;
+        });
       }
       if (!metricMatches || record === null) {
         if (entry.zone !== null) entry.zone.visible = false;
@@ -808,14 +984,14 @@ export class RackViewer {
 
       const color = measurementColor(metric, record.value);
       entry.marker?.userData.accent.material.color.copy(color ?? ANCHOR_COLOR);
-      if (!presentation.zones) {
+      if (!presentation.zones || entry.anchor.registration_state === 'installation_reference') {
         if (entry.zone !== null) entry.zone.visible = false;
         continue;
       }
       if (entry.zone === null) {
         entry.zone = createMeasurementZone(
           this.modelRoot,
-          entry.marker.position,
+          new THREE.Vector3().fromArray(entry.anchor.position),
           this.modelSize,
           this.modelRadius,
           this.canvas.ownerDocument
@@ -832,6 +1008,7 @@ export class RackViewer {
     const selectedRecord =
       this.selectedSpatialKey === null ? null : (matching.get(this.selectedSpatialKey) ?? null);
     this.setSpatialSelection(selectedRecord);
+    this.synchronizeSensorEffects();
     this.requestRender();
     return {
       anchorCount: this.telemetryAnchors.size,
@@ -842,6 +1019,10 @@ export class RackViewer {
       metric,
       unit: presentation.unit,
       zoneCount,
+      moduleCount: new Set(
+        [...matching.keys()].map((key) => this.telemetryAnchors.get(key).markerKey)
+      ).size,
+      zonesApplicable: !this.modelRoot?.userData.rackLayout,
     };
   }
 
@@ -868,6 +1049,7 @@ export class RackViewer {
     }
 
     const direction = this.camera.position.clone().sub(this.controls.target);
+    if (root.userData.rackLayout && this.modelRoot !== root) direction.set(0.28, 0.1, 1);
     if (direction.lengthSq() === 0) direction.set(1, 1, 1);
     direction.normalize();
     this.camera.position.copy(sphere.center).addScaledVector(direction, distance);
@@ -915,18 +1097,27 @@ export class RackViewer {
     this.setState(MODEL_STATE.LOADING);
     let root = null;
     try {
-      const loaded = await this.loader.loadAsync(parsed.url);
-      root = loaded.scene;
+      if (parsed.kind === 'rack') root = createRackModel(parsed.layout);
+      else root = (await this.loader.loadAsync(parsed.url)).scene;
       if (revision !== this.loadRevision || this.destroyed) {
         disposeModel(root);
         return false;
       }
-      root.position.fromArray(parsed.position);
-      root.rotation.set(...parsed.rotation);
-      root.scale.fromArray(parsed.scale);
+      if (parsed.kind !== 'rack') {
+        root.position.fromArray(parsed.position);
+        root.rotation.set(...parsed.rotation);
+        root.scale.fromArray(parsed.scale);
+      }
       this.frameModel(root);
       this.modelRoot = root;
-      root.visible = this.layerVisibility?.geometry ?? true;
+      setRackInspection(root, this.inspectionMode);
+      const sensors = root.getObjectByName('sensors');
+      if (sensors) sensors.visible = this.layerVisibility?.anchors ?? true;
+      if (root.userData.rackLayout) {
+        for (const component of root.children)
+          if (component.name !== 'sensors')
+            component.visible = this.layerVisibility?.geometry ?? true;
+      } else root.visible = this.layerVisibility?.geometry ?? true;
       this.applySurfaceMode(root);
       this.scene.add(root);
       if (this.telemetryAnchors?.size > 0) {
@@ -948,6 +1139,11 @@ export class RackViewer {
 
   removeModel() {
     if (this.modelRoot === null) return;
+    if (this.sensorEffects) {
+      this.measurementZoneRoot.remove(this.sensorEffects.root);
+      disposeModel(this.sensorEffects.root);
+      this.sensorEffects = null;
+    }
     this.scene.remove(this.modelRoot);
     this.restoreSurfaceMaterials(this.modelRoot);
     disposeModel(this.modelRoot);
@@ -966,6 +1162,8 @@ export class RackViewer {
     this.canvas.removeEventListener('pointerdown', this.rememberRegistrationPointer);
     this.canvas.removeEventListener('click', this.handleCanvasClick);
     this.resizeObserver.disconnect();
+    this.reducedMotionQuery?.removeEventListener('change', this.handleReducedMotion);
+    this.canvas.ownerDocument.removeEventListener('visibilitychange', this.handleEffectVisibility);
     this.controls.removeEventListener('change', this.requestRender);
     this.controls.dispose();
     this.removeModel();

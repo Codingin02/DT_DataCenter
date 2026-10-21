@@ -1,0 +1,40 @@
+services:
+  postgres:
+    restart: unless-stopped
+    volumes: !override
+      - postgres-data:/var/lib/postgresql/data
+
+  mosquitto:
+    restart: unless-stopped
+    environment:
+      MQTT_PASSWORD: ${MQTT_PASSWORD:?A separate MQTT_PASSWORD is required}
+    ports: !override
+      - ${DT_IOT_BIND_ADDRESS:?An authorized IoT interface address is required}:8883:8883
+    volumes: !override
+      - ./mosquitto.server.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto.server.acl:/mosquitto/config/acl:ro
+      - ${DT_MQTT_TLS_DIRECTORY:?A private TLS directory is required}:/mosquitto/certs:ro
+      - mqtt-data:/mosquitto/data
+
+  backend:
+    restart: unless-stopped
+    ports: !reset []
+    environment:
+      MQTT_PASSWORD: ${MQTT_PASSWORD:?A separate MQTT_PASSWORD is required}
+      HOST_EXPORTER_PLATFORM: linux
+      HOST_EXPORTER_URL: ${HOST_EXPORTER_URL:-}
+      HOST_DEVICE_ID: ${HOST_DEVICE_ID:-}
+      HOST_NETWORK_NIC: ${HOST_NETWORK_NIC:-}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  nginx:
+    restart: unless-stopped
+    ports: !override
+      - ${DT_ADMIN_BIND_ADDRESS:?The authorized server VPN address is required}:3010:80
+
+volumes:
+  postgres-data:
+    external: true
+    name: ${DT_POSTGRES_VOLUME:?The restored PostgreSQL volume name is required}
+  mqtt-data:

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  assertProducerRetired,
   assertSimulationOwnership,
   acceptanceReadinessExpectations,
   createAcceptanceSeries,
@@ -13,6 +14,12 @@ import {
 } from './acceptance-data.js';
 
 const START = '2026-01-01T00:00:00.000Z';
+test('retired producers cannot publish or seed while inspection and cleanup remain available', () => {
+  for (const command of ['live', 'populate', 'backfill', 'openmetrics'])
+    assert.throws(() => assertProducerRetired(command), /physical hardware owns telemetry/);
+  for (const command of ['status', 'readiness', 'cleanup', 'offline'])
+    assert.doesNotThrow(() => assertProducerRetired(command));
+});
 const fiveDay = createAcceptanceSeries({ start: START });
 
 test('five-day coverage skips complete simulation identities and selects only missing sources', () => {

@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { URLSearchParams } from 'node:url';
 
 import {
   createCurrentStateEvents,
@@ -53,6 +54,27 @@ const runtimeEnvironment = {
   HTTP_HOST: '127.0.0.1',
   HTTP_PORT: '3000',
 };
+
+test('host monitoring is explicit, platform-specific and excludes URL credentials', () => {
+  assert.equal(loadConfiguration(runtimeEnvironment).hostNetwork, null);
+  const env = {
+    ...runtimeEnvironment,
+    HOST_EXPORTER_URL: 'http://host.docker.internal:9182/metrics',
+    HOST_EXPORTER_PLATFORM: 'windows',
+    HOST_DEVICE_ID: 'host-test',
+    HOST_NETWORK_NIC: 'Intel[R] Wi-Fi 6 AX203',
+  };
+  assert.equal(loadConfiguration(env).hostNetwork.nic, env.HOST_NETWORK_NIC);
+  assert.throws(
+    () => loadConfiguration({ ...env, HOST_EXPORTER_URL: 'http://user:secret@localhost/metrics' }),
+    /credentials/
+  );
+  assert.throws(() => loadConfiguration({ ...env, HOST_NETWORK_NIC: '' }), /required/);
+  assert.throws(
+    () => loadConfiguration({ ...env, HOST_EXPORTER_PLATFORM: 'container' }),
+    /platform/
+  );
+});
 
 test('startup configuration requires explicit valid runtime settings', () => {
   const configuration = loadConfiguration(runtimeEnvironment);
@@ -655,6 +677,14 @@ test('history HTTP read bounds five-day series with PostgreSQL time buckets', as
           minimum: '18',
           maximum: '28',
           sample_count: '361',
+          first_ts: new Date('2026-01-01T00:00:03.000Z'),
+          last_ts: new Date('2026-01-01T00:06:03.000Z'),
+          latest: '24',
+          quality: 'degraded',
+          good_count: '360',
+          degraded_count: '1',
+          unknown_count: '0',
+          max_gap_seconds: '1',
         },
       ],
     };
@@ -686,12 +716,32 @@ test('history HTTP read bounds five-day series with PostgreSQL time buckets', as
     points: [
       {
         ts: '2026-01-01T00:00:00.000Z',
+        first_ts: '2026-01-01T00:00:03.000Z',
+        last_ts: '2026-01-01T00:06:03.000Z',
         average: 20.5,
         minimum: 18,
         maximum: 28,
         count: 361,
+        latest: 24,
+        quality: 'degraded',
+        quality_counts: { good: 360, degraded: 1, unknown: 0 },
+        max_gap_seconds: 1,
       },
     ],
+    summary: {
+      count: 361,
+      minimum: 18,
+      maximum: 28,
+      average: 20.5,
+      first_ts: '2026-01-01T00:00:03.000Z',
+      quality_counts: { good: 360, degraded: 1, unknown: 0 },
+      max_gap_seconds: 1,
+      latest: 24,
+      latest_ts: '2026-01-01T00:06:03.000Z',
+      last_ts: '2026-01-01T00:06:03.000Z',
+      quality: 'degraded',
+      bucket_count: 1,
+    },
   });
   assert.deepEqual(calls[0].values, [
     'test-rack',
@@ -707,6 +757,97 @@ test('history HTTP read bounds five-day series with PostgreSQL time buckets', as
   );
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: 'invalid_history_query' });
+  assert.equal(calls.length, 1);
+  assert.doesNotMatch(calls[0].text, /percentile_cont|width_bucket/);
+});
+
+test('history analytics preserves raw distributions and weights unequal bucket counts', async (t) => {
+  const first = {
+    sensor_id: 'test-sensor',
+    unit: 'degC',
+    bucket: '2026-01-01T00:00:00Z',
+    first_ts: '2026-01-01T00:00:03Z',
+    last_ts: '2026-01-01T00:00:12Z',
+    average: '10',
+    minimum: '0',
+    maximum: '20',
+    sample_count: '10',
+    latest: '12',
+    quality: 'good',
+    good_count: '9',
+    degraded_count: '1',
+    unknown_count: '0',
+    max_gap_seconds: '1',
+    quartiles: [5, 10, 15],
+    histogram: [{ minimum: 0, maximum: 20, count: 11 }],
+  };
+  const second = {
+    ...first,
+    bucket: '2026-01-01T00:01:00Z',
+    first_ts: '2026-01-01T00:01:20Z',
+    last_ts: '2026-01-01T00:01:20Z',
+    average: '20',
+    minimum: '20',
+    maximum: '20',
+    sample_count: '1',
+    latest: '20',
+    quality: 'unknown',
+    good_count: '0',
+    degraded_count: '0',
+    unknown_count: '1',
+    max_gap_seconds: '68',
+    quartiles: null,
+    histogram: null,
+  };
+  const calls = [];
+  const query = async (text, values) => {
+    calls.push({ text, values });
+    assert.match(text, /percentile_cont\(ARRAY\[0\.25, 0\.5, 0\.75\]\)/);
+    assert.match(text, /width_bucket\(value/);
+    assert.match(text, /FROM observations/);
+    assert.match(text, /ts DESC, received_at DESC, measurement_id DESC/);
+    return {
+      rows: [
+        first,
+        second,
+        {
+          ...first,
+          sensor_id: 'test-sensor-2',
+          histogram: [{ minimum: 0, maximum: 20, count: 10 }],
+        },
+      ],
+    };
+  };
+  const server = createServer(createHttpHandler({ query }));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}/api/assets/test-rack/history`;
+  const search = '?metric=temperature&from=2026-01-01T00:00:00Z&to=2026-01-02T00:00:00Z';
+  let response = await fetch(`${base}${search}&analytics=true`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.series.length, 2);
+  const summary = body.series[0].summary;
+  assert.equal(summary.count, 11);
+  assert.equal(summary.bucket_count, 2);
+  assert.equal(summary.average, 120 / 11);
+  assert.equal(summary.minimum, 0);
+  assert.equal(summary.maximum, 20);
+  assert.equal(summary.latest, 20);
+  assert.equal(summary.latest_ts, '2026-01-01T00:01:20.000Z');
+  assert.equal(summary.first_ts, '2026-01-01T00:00:03.000Z');
+  assert.equal(summary.max_gap_seconds, 68);
+  assert.deepEqual(summary.quality_counts, { good: 9, degraded: 1, unknown: 1 });
+  assert.deepEqual(summary.quartiles, [5, 10, 15]);
+  assert.deepEqual(summary.histogram, [{ minimum: 0, maximum: 20, count: 11 }]);
+  assert.equal(body.series[1].summary.count, 10);
+  for (const invalid of ['analytics=1', 'max_points=2001', 'to=2026-03-01T00:00:00Z']) {
+    const invalidSearch = new URLSearchParams(search.slice(1));
+    const [key, value] = invalid.split('=');
+    invalidSearch.set(key, value);
+    response = await fetch(`${base}?${invalidSearch}`);
+    assert.equal(response.status, 400);
+  }
   assert.equal(calls.length, 1);
 });
 

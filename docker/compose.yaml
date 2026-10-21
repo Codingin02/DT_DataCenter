@@ -3,7 +3,9 @@ name: dt_datacenter
 services:
   postgres:
     image: postgres:17.11-alpine3.24
+    container_name: dt-datacenter-postgres
     pull_policy: never
+    restart: ${DT_RESTART_POLICY:-no}
     environment:
       POSTGRES_DB: DT_DataCenter
       POSTGRES_USER: bagus
@@ -19,7 +21,9 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2.1.2-alpine
+    container_name: dt-datacenter-mosquitto
     pull_policy: never
+    restart: ${DT_RESTART_POLICY:-no}
     environment:
       MQTT_USERNAME: ${MQTT_USERNAME:-dt-datacenter}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}}
@@ -34,7 +38,7 @@ services:
     tmpfs:
       - /run/mosquitto
     ports:
-      - ${DT_MQTT_BIND_ADDRESS:-127.0.0.1}:${DT_MQTT_PORT:-1883}:1883
+      - ${DT_MQTT_BIND_ADDRESS:-0.0.0.0}:${DT_MQTT_PORT:-1883}:1883
     healthcheck:
       test:
         [
@@ -47,12 +51,12 @@ services:
 
   backend:
     image: dt-datacenter-backend:local
+    container_name: dt-datacenter-backend
     pull_policy: never
+    restart: ${DT_RESTART_POLICY:-no}
     build:
       context: ..
       dockerfile: docker/backend.Dockerfile
-      network: none
-      pull: false
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,8 +77,13 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       PGPORT: 5432
       PGUSER: bagus
+      SHELLY_MQTT_ID: ${SHELLY_MQTT_ID:-shellyplugpmg3-48f6eebbf3f4}
+      HOST_EXPORTER_URL: ${HOST_EXPORTER_URL:-}
+      HOST_EXPORTER_PLATFORM: ${HOST_EXPORTER_PLATFORM:-linux}
+      HOST_DEVICE_ID: ${HOST_DEVICE_ID:-}
+      HOST_NETWORK_NIC: ${HOST_NETWORK_NIC:-}
     ports:
-      - ${DT_HTTP_BIND_ADDRESS:-127.0.0.1}:${DT_HTTP_PORT:-3000}:3000
+      - ${DT_HTTP_BIND_ADDRESS:-127.0.0.1}:${DT_HTTP_PORT:-3010}:3000
     healthcheck:
       test:
         [
@@ -90,6 +99,7 @@ services:
 
   nginx:
     image: nginx:1.28-alpine
+    container_name: dt-datacenter-nginx
     pull_policy: never
     depends_on:
       backend:
@@ -97,13 +107,13 @@ services:
     volumes:
       - ../infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - ${DT_NGINX_BIND_ADDRESS:-127.0.0.1}:${DT_NGINX_PORT:-80}:80
+      - ${DT_NGINX_BIND_ADDRESS:-0.0.0.0}:${DT_NGINX_PORT:-80}:80
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:80/nginx-health || exit 1']
       interval: 5s
       timeout: 3s
       retries: 10
-    restart: unless-stopped
+    restart: ${DT_RESTART_POLICY:-no}
 
 volumes:
   postgres-data:

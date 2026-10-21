@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import * as THREE from 'three';
+import { createRackModel, rackSourcePlacements } from './rack-model.js';
 
 import {
   MEASUREMENT_SCALE,
@@ -23,6 +24,8 @@ import {
   normalizePerformanceProfile,
   parseRackModelConfig,
   performancePixelRatio,
+  pickSpatialSensor,
+  pickRackReference,
   persistPerformanceProfile,
   readPerformanceProfile,
   resolveRackModelResourceUrl,
@@ -35,10 +38,12 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
   const html = await readFile(new URL('./index.html', import.meta.url), 'utf8');
   const main = await readFile(new URL('./main.js', import.meta.url), 'utf8');
   const styles = await readFile(new URL('./styles.css', import.meta.url), 'utf8');
-  assert.match(html, /data-model-url="\/models\/rack\.glb"/);
+  assert.match(html, /data-model-kind="rack"/);
+  assert.doesNotMatch(html, /data-model-url="\/models\/rack\.glb"/);
   for (const id of [
     'stream-browser',
     'surface-mode',
+    'rack-inspection',
     'measurement-inspector',
     'clear-selection',
     'analytics-context',
@@ -86,7 +91,7 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
   assert.match(html, /data-system-surface="electrical"/);
   assert.match(html, /id="context-analytics"[\s\S]*hidden/);
   assert.match(html, /Network Infrastructure[\s\S]*Not modeled/);
-  assert.match(html, /Power instrumentation[\s\S]*Unavailable/);
+  assert.match(html, /Power instrumentation[\s\S]*data-electrical-observation/);
   assert.doesNotMatch(html, /data-spatial-overlay="twin"/);
   assert.match(html, /data-spatial-overlay="architecture"/);
   assert.match(html, /data-spatial-overlay="mechanical"/);
@@ -97,20 +102,13 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
   assert.doesNotMatch(main, /\['twin', 'streams'\]\.includes\(activeWorkspace\)/);
   assert.match(html, /class="browser-group reference-scale-group"[\s\S]*id="measurement-legend"/);
   assert.doesNotMatch(html, /class="spatial-layer-state"[\s\S]*id="measurement-legend"/);
-  assert.match(main, /registrationGroup\.hidden = simulationPresent/);
-  assert.match(main, /spatialReadinessGroup\.hidden = simulationPresent/);
+  assert.match(main, /registrationGroup\.hidden = physicalRackModel/);
   assert.match(
     main,
-    /acceptance-sht31-a-temperature', positions\.top[\s\S]*acceptance-sht31-a-humidity', positions\.top/
+    /spatialReadinessGroup\.hidden = physicalRackModel && activeWorkspace === 'twin'/
   );
-  assert.match(
-    main,
-    /acceptance-sht31-b-temperature', positions\.front[\s\S]*acceptance-sht31-b-humidity', positions\.front/
-  );
-  assert.match(
-    main,
-    /acceptance-voltage', positions\.electrical[\s\S]*acceptance-energy', positions\.electrical/
-  );
+  assert.match(main, /viewer\?\.installationPlacements\(registrationSources\)/);
+  assert.doesNotMatch(main, /synchronizeAcceptanceAnchors/);
   assert.match(main, /spatialLayerCallout\.hidden = !isMeasurementSpatialWorkspace\(\) \|\| quiet/);
   assert.equal(main.match(/new LiveCurrentState\(/g)?.length, 1);
   assert.equal(main.match(/new EventSource\(/g)?.length ?? 0, 0);
@@ -136,7 +134,7 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
   assert.match(main, /historyUrl\(/);
   assert.match(main, /scale !== undefined/);
   assert.doesNotMatch(html, />\s*(Safe|Alarm|Critical)\s*</);
-  assert.equal(html.match(/name="twin-spatial-metric"/g)?.length, 4);
+  assert.equal(html.match(/name="twin-spatial-metric"/g)?.length, 5);
   assert.match(html, /name="twin-spatial-metric"[\s\S]*value="acoustic"/);
   assert.match(html, /name="twin-spatial-metric"[\s\S]*value="electrical"/);
   assert.doesNotMatch(html, /name="twin-spatial-metric"[^>]*value="sound_(?:rms|peak)_dbfs"/);
@@ -155,13 +153,13 @@ test('empty workspaces retain engineering structure and domain diagrams', async 
   assert.match(html, /data-stream-filter="environment"[\s\S]*data-stream-filter="device"/);
   assert.match(html, /id="stream-registry-body"/);
   assert.match(html, /id="history-query"[\s\S]*data-history-range="5d"/);
-  assert.match(html, /id="analytics-history-chart"[\s\S]*no values are generated in the browser/i);
+  assert.match(html, /id="analytics-history-chart"/);
   assert.match(html, /data-history-metric="net_receive_throughput_bytes_per_second"/);
   assert.match(html, /data-history-metric="active_power_w"/);
   assert.match(html, /data-history-metric="temperature"/);
-  assert.match(html, /Operational event browser[\s\S]*Synthetic derivation/);
+  assert.match(html, /Operational event browser[\s\S]*Event policy/);
   assert.match(html, /class="topology-flow"[\s\S]*Network Infrastructure[\s\S]*Not modeled/);
-  assert.match(html, /class="electrical-schematic"[\s\S]*Measurement source unavailable/);
+  assert.match(html, /class="electrical-schematic"[\s\S]*Rack Power/);
   assert.match(html, /class="mechanical-domain-panel"[\s\S]*Requires anchor \+ observation/);
 });
 
@@ -184,8 +182,8 @@ test('assets hardware topology covers configured wiring and interaction state', 
   ]) {
     assert.match(main, mapping);
   }
-  assert.match(main, /acceptance-sht31-a-temperature[\s\S]*acceptance-sht31-a-humidity/);
-  assert.match(main, /acceptance-sht31-b-temperature[\s\S]*acceptance-sht31-b-humidity/);
+  assert.match(main, /sht31-a-temperature[\s\S]*sht31-a-humidity/);
+  assert.match(main, /sht31-b-temperature[\s\S]*sht31-b-humidity/);
   assert.match(main, /hardwareActivity\(records\)[\s\S]*records\.some/);
   assert.match(main, /selectedHardwareKey[\s\S]*setBreadcrumb\(\['Assets', 'Hardware condition'/);
   assert.match(html, /data-hardware-node="electrical"/);
@@ -280,6 +278,45 @@ test('active model can be framed without creating another representation', () =>
   assert.equal(viewer.scene.children.filter((child) => child === root).length, 1);
   viewer.destroyed = true;
   assert.equal(viewer.frameActiveModel(), false);
+});
+
+test('physical rack initially frames the upright front and preserves later orbit direction', () => {
+  const root = createRackModel();
+  const viewer = Object.create(RackViewer.prototype);
+  viewer.modelRoot = null;
+  viewer.modelSize = new THREE.Vector3();
+  viewer.camera = new THREE.PerspectiveCamera(45, 1.4, 0.01, 100);
+  viewer.camera.position.set(1, 1, 1);
+  viewer.controls = {
+    target: new THREE.Vector3(),
+    update() {
+      viewer.camera.lookAt(this.target);
+      viewer.camera.updateMatrixWorld(true);
+    },
+  };
+  viewer.frameModel(root);
+  assert.ok(Math.abs(viewer.controls.target.y - 1.016) < 1e-6);
+  assert.ok(Math.abs(viewer.controls.target.x) < 1e-6);
+  assert.ok(Math.abs(viewer.controls.target.z) < 1e-6);
+  const direction = viewer.camera.position.clone().sub(viewer.controls.target).normalize();
+  assert.ok(direction.z > 0.8 && direction.y > 0 && direction.y < 0.15);
+  for (const x of [-0.3, 0.3])
+    for (const y of [0, 2.032])
+      for (const z of [-0.45, 0.45]) {
+        const projected = new THREE.Vector3(x, y, z).project(viewer.camera);
+        assert.ok(Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1);
+      }
+  viewer.modelRoot = root;
+  viewer.camera.position.set(-3, 1.5, 4);
+  const orbitDirection = viewer.camera.position.clone().sub(viewer.controls.target).normalize();
+  viewer.frameModel(root);
+  assert.ok(
+    viewer.camera.position
+      .clone()
+      .sub(viewer.controls.target)
+      .normalize()
+      .distanceTo(orbitDirection) < 1e-10
+  );
 });
 
 test('surface mode defaults to textured and restores original materials', () => {
@@ -416,6 +453,172 @@ const registeredAnchor = Object.freeze({
   sensor_id: 'sensor-a',
   position: [0, 1, 5],
   unit: 'degC',
+});
+
+function physicalRackViewer() {
+  const { viewer, overlay } = spatialViewerHarness();
+  viewer.modelRoot = createRackModel();
+  const sources = [
+    ['sht31-a', 'sht31-a-temperature', 'temperature', 'degC'],
+    ['sht31-a', 'sht31-a-humidity', 'humidity', 'percent_rh'],
+    ['sht31-b', 'sht31-b-temperature', 'temperature', 'degC'],
+    ['sht31-b', 'sht31-b-humidity', 'humidity', 'percent_rh'],
+    ['rack-acoustic', 'rack-sound-rms', 'sound_rms_dbfs', 'dBFS'],
+    ['rack-acoustic', 'rack-sound-peak', 'sound_peak_dbfs', 'dBFS'],
+  ].map(([asset_id, sensor_id, metric, unit]) => ({
+    asset_id,
+    sensor_id,
+    metric,
+    unit,
+    device_id: 'rack-controller',
+  }));
+  const placements = viewer.installationPlacements(sources);
+  assert.deepEqual(placements, rackSourcePlacements(sources));
+  viewer.setSpatialAnchors(placements);
+  return { viewer, overlay, placements };
+}
+
+test('production rack binds six measurements to three actual internal modules, not wall decals', () => {
+  const { viewer, overlay, placements } = physicalRackViewer();
+  assert.equal(viewer.telemetryAnchors.size, 6);
+  assert.equal(viewer.telemetryMarkers.size, 3);
+  assert.equal(overlay.anchorRoot.children.length, 0);
+  const records = placements.map((placement) => ({ ...placement, value: 24 }));
+  assert.equal(viewer.updateSpatialMeasurements(records, 'temperature').count, 2);
+  const a = viewer.modelRoot.getObjectByName('sht31-a');
+  assert.deepEqual(a.position.toArray(), [0, 1.892, 0]);
+  assert.equal(a.userData.spatialContext.sensor_id, 'sht31-a-temperature');
+  assert.equal(
+    a.userData.accent.material.color.getHexString(),
+    measurementColor('temperature', 24).getHexString()
+  );
+  assert.equal(viewer.updateSpatialMeasurements(records, 'humidity').count, 2);
+  assert.equal(a.userData.spatialContext.sensor_id, 'sht31-a-humidity');
+  assert.equal(
+    a.userData.accent.material.color.getHexString(),
+    measurementColor('humidity', 24).getHexString()
+  );
+  const acoustic = viewer.updateSpatialMeasurements(records, 'acoustic');
+  assert.equal(acoustic.count, 2);
+  assert.equal(acoustic.moduleCount, 1);
+  assert.equal(acoustic.zoneCount, 0);
+  assert.equal(acoustic.zonesApplicable, false);
+  assert.equal(viewer.telemetryMarkers.size, 3);
+  assert.equal(overlay.zoneRoot.children.filter(({ visible }) => visible).length, 0);
+  viewer.setSpatialSelection(placements[4]);
+  assert.equal(viewer.modelRoot.getObjectByName('inmp441').scale.x, 1.35);
+  viewer.setLayerVisibility('anchors', false);
+  assert.equal(viewer.modelRoot.getObjectByName('sensors').visible, false);
+  viewer.updateSpatialMeasurements(records, 'temperature');
+  assert.equal(viewer.modelRoot.getObjectByName('sensors').visible, false);
+  viewer.setLayerVisibility('anchors', true);
+  viewer.setLayerVisibility('geometry', false);
+  assert.equal(viewer.modelRoot.visible, true);
+  assert.equal(viewer.modelRoot.getObjectByName('frame').visible, false);
+  assert.equal(viewer.modelRoot.getObjectByName('sensors').visible, true);
+});
+
+test('surface and inspection switches preserve module materials and the original glass', () => {
+  const { viewer } = physicalRackViewer();
+  const root = viewer.modelRoot;
+  const accent = root.getObjectByName('sht31-a').userData.accent.material;
+  const glass = root.getObjectByName('tempered-glass').material;
+  const post = root.getObjectByName('corner-post');
+  const original = post.material;
+  viewer.setSurfaceMode(SURFACE_MODE.CONTRAST);
+  assert.notEqual(post.material, original);
+  assert.equal(root.getObjectByName('tempered-glass').material, glass);
+  assert.equal(root.getObjectByName('sht31-a').userData.accent.material, accent);
+  viewer.setInspectionMode(true);
+  assert.equal(root.getObjectByName('front-door').visible, false);
+  viewer.setInspectionMode(false);
+  assert.equal(root.getObjectByName('front-door').visible, true);
+  viewer.setSurfaceMode(SURFACE_MODE.TEXTURED);
+  assert.equal(post.material, original);
+  assert.equal(viewer.modelRoot, root);
+});
+
+test('internal sensor picking respects cutaway panels, glass, occlusion and active layer', () => {
+  const { viewer, placements } = physicalRackViewer();
+  const records = placements.map((placement) => ({ ...placement, value: 25 }));
+  viewer.updateSpatialMeasurements(records, 'temperature');
+  const root = viewer.modelRoot;
+  root.updateMatrixWorld(true);
+  const frontRay = new THREE.Raycaster(new THREE.Vector3(0, 1.016, 2), new THREE.Vector3(0, 0, -1));
+  const sideRay = new THREE.Raycaster(new THREE.Vector3(2, 1.016, 0), new THREE.Vector3(-1, 0, 0));
+  assert.equal(
+    pickSpatialSensor(frontRay, root, viewer.telemetryMarkers.values())?.sensor_id,
+    'sht31-b-temperature'
+  );
+  assert.equal(pickSpatialSensor(sideRay, root, viewer.telemetryMarkers.values()), null);
+  viewer.setInspectionMode(true);
+  assert.equal(
+    pickSpatialSensor(sideRay, root, viewer.telemetryMarkers.values())?.sensor_id,
+    'sht31-b-temperature'
+  );
+  viewer.updateSpatialMeasurements(records, 'humidity');
+  assert.equal(
+    pickSpatialSensor(frontRay, root, viewer.telemetryMarkers.values())?.sensor_id,
+    'sht31-b-humidity'
+  );
+  viewer.setLayerVisibility('anchors', false);
+  assert.equal(pickSpatialSensor(frontRay, root, viewer.telemetryMarkers.values()), null);
+});
+
+test('photographed equipment can be selected as reference geometry without canonical telemetry identities', () => {
+  const { viewer } = physicalRackViewer();
+  viewer.setInspectionMode(true);
+  const root = viewer.modelRoot;
+  const layout = root.userData.rackLayout;
+  const lower = pickRackReference(
+    new THREE.Raycaster(
+      new THREE.Vector3(0.1, layout.serverLowerY + 0.02, 2),
+      new THREE.Vector3(0, 0, -1)
+    ),
+    root
+  );
+  assert.equal(lower.object_id, 'server-lower');
+  assert.equal(lower.display_name, 'IBM System x3250 M4');
+  assert.equal(lower.asset_id, undefined);
+  assert.equal(lower.sensor_id, undefined);
+  assert.equal(lower.dimensional_authority, 'manufacturer_reference');
+  const keyboard = pickRackReference(
+    new THREE.Raycaster(new THREE.Vector3(0.1, 1.8, layout.keyboardZ), new THREE.Vector3(0, -1, 0)),
+    root
+  );
+  assert.equal(keyboard.object_id, 'keyboard');
+  root.getObjectByName('installed-equipment').visible = false;
+  assert.equal(
+    pickRackReference(
+      new THREE.Raycaster(
+        new THREE.Vector3(0.1, layout.serverLowerY + 0.02, 2),
+        new THREE.Vector3(0, 0, -1)
+      ),
+      root
+    ),
+    null
+  );
+});
+
+test('procedural physical rack loads with existing viewer ownership without requesting a GLB', async () => {
+  const previousWindow = globalThis.window;
+  globalThis.window = { location: { href: baseUrl } };
+  try {
+    const { viewer, states } = viewerHarness({ loadAsync: () => assert.fail('GLB loader called') });
+    viewer.inspectionMode = true;
+    assert.equal(await viewer.loadModel({ kind: 'rack' }), true);
+    assert.equal(viewer.modelRoot.name, 'laboratory-rack');
+    assert.equal(viewer.scene.children.length, 1);
+    assert.equal(viewer.modelRoot.getObjectByName('front-door').visible, false);
+    assert.equal(states.at(-1).state, MODEL_STATE.READY);
+    viewer.setSurfaceMode(SURFACE_MODE.CONTRAST);
+    viewer.setInspectionMode(false);
+    assert.equal(viewer.scene.children.length, 1);
+    viewer.removeModel();
+    assert.equal(viewer.scene.children.length, 0);
+  } finally {
+    globalThis.window = previousWindow;
+  }
 });
 
 test('spatial anchors require explicit registration evidence and collision-safe identity', () => {
@@ -642,17 +845,17 @@ test('spatial selection changes marker emphasis without copying canonical record
 
 test('temperature and humidity use deterministic visualization scales without alarm semantics', () => {
   assert.deepEqual(
-    [9, 18, 22.5, 27, 36].map((value) => measurementColor('temperature', value).getHex()),
-    [0x2b659c, 0x2e9bb2, 0x4d9b65, 0xd0aa3f, 0xc87332]
+    [10, 18, 27, 35, 40].map((value) => measurementColor('temperature', value).getHex()),
+    [0x456d8b, 0x648d7c, 0xc0a15c, 0xc27b4f, 0xa84d46]
   );
   assert.deepEqual(
     [0, 25, 50, 75, 100].map((value) => measurementColor('humidity', value).getHex()),
     [0x28769a, 0x2e92a4, 0x459878, 0x83a04e, 0xbf923e]
   );
-  assert.equal(measurementColor('temperature', -20).getHex(), 0x2b659c);
-  assert.equal(measurementColor('temperature', 80).getHex(), 0xc87332);
+  assert.equal(measurementColor('temperature', -20).getHex(), 0x456d8b);
+  assert.equal(measurementColor('temperature', 80).getHex(), 0xa84d46);
   assert.equal(measurementColor('sound_rms_dbfs', -32), null);
-  assert.equal(measurementScalePosition('temperature', 22.5), 50);
+  assert.equal(measurementScalePosition('temperature', 25), 50);
   assert.equal(measurementScalePosition('humidity', 50), 50);
   assert.equal(MEASUREMENT_SCALE.temperature.stops.length, 5);
 });
