@@ -7,22 +7,22 @@ as string literals throughout the codebase.
 
 ## Production identities
 
-| Config key | Value | Description |
-|---|---|---|
-| DT_SITE_ID | campus-lab | Campus data-center laboratory |
-| DT_DEVICE_ID | rack-controller | ESP32-S3 measurement controller |
-| DT_SHT31_A_TEMPERATURE_SENSOR_ID | sht31-a-temperature | SEN0331 A temperature channel |
-| DT_SHT31_A_TEMPERATURE_ASSET_ID | sht31-a | SEN0331 A physical asset |
-| DT_SHT31_A_HUMIDITY_SENSOR_ID | sht31-a-humidity | SEN0331 A humidity channel |
-| DT_SHT31_A_HUMIDITY_ASSET_ID | sht31-a | SEN0331 A physical asset |
-| DT_SHT31_B_TEMPERATURE_SENSOR_ID | sht31-b-temperature | SEN0331 B temperature channel |
-| DT_SHT31_B_TEMPERATURE_ASSET_ID | sht31-b | SEN0331 B physical asset |
-| DT_SHT31_B_HUMIDITY_SENSOR_ID | sht31-b-humidity | SEN0331 B humidity channel |
-| DT_SHT31_B_HUMIDITY_ASSET_ID | sht31-b | SEN0331 B physical asset |
-| DT_ACOUSTIC_RMS_SENSOR_ID | rack-sound-rms | INMP441 RMS dBFS channel |
-| DT_ACOUSTIC_RMS_ASSET_ID | rack-acoustic | INMP441 physical asset |
-| DT_ACOUSTIC_PEAK_SENSOR_ID | rack-sound-peak | INMP441 peak dBFS channel |
-| DT_ACOUSTIC_PEAK_ASSET_ID | rack-acoustic | INMP441 physical asset |
+| Config key                       | Value               | Description                     |
+| -------------------------------- | ------------------- | ------------------------------- |
+| DT_SITE_ID                       | campus-lab          | Campus data-center laboratory   |
+| DT_DEVICE_ID                     | rack-controller     | ESP32-S3 measurement controller |
+| DT_SHT31_A_TEMPERATURE_SENSOR_ID | sht31-a-temperature | SEN0331 A temperature channel   |
+| DT_SHT31_A_TEMPERATURE_ASSET_ID  | sht31-a             | SEN0331 A physical asset        |
+| DT_SHT31_A_HUMIDITY_SENSOR_ID    | sht31-a-humidity    | SEN0331 A humidity channel      |
+| DT_SHT31_A_HUMIDITY_ASSET_ID     | sht31-a             | SEN0331 A physical asset        |
+| DT_SHT31_B_TEMPERATURE_SENSOR_ID | sht31-b-temperature | SEN0331 B temperature channel   |
+| DT_SHT31_B_TEMPERATURE_ASSET_ID  | sht31-b             | SEN0331 B physical asset        |
+| DT_SHT31_B_HUMIDITY_SENSOR_ID    | sht31-b-humidity    | SEN0331 B humidity channel      |
+| DT_SHT31_B_HUMIDITY_ASSET_ID     | sht31-b             | SEN0331 B physical asset        |
+| DT_ACOUSTIC_RMS_SENSOR_ID        | rack-sound-rms      | INMP441 RMS dBFS channel        |
+| DT_ACOUSTIC_RMS_ASSET_ID         | rack-acoustic       | INMP441 physical asset          |
+| DT_ACOUSTIC_PEAK_SENSOR_ID       | rack-sound-peak     | INMP441 peak dBFS channel       |
+| DT_ACOUSTIC_PEAK_ASSET_ID        | rack-acoustic       | INMP441 physical asset          |
 
 ## Telemetry topics (production)
 
@@ -53,10 +53,10 @@ before production telemetry can be accepted.
 
 ## Provenance separation
 
-| Provenance | Identity pattern | Example device_id |
-|---|---|---|
-| Proteus/acceptance | acceptance-*, simulated-* | acceptance-sim-esp32 |
-| Physical hardware | Production table above | rack-controller |
+| Provenance         | Identity pattern          | Example device_id    |
+| ------------------ | ------------------------- | -------------------- |
+| Proteus/acceptance | acceptance-_, simulated-_ | acceptance-sim-esp32 |
+| Physical hardware  | Production table above    | rack-controller      |
 
 Historical Proteus records in PostgreSQL retain their original identities.
 Production records use the identities defined above.

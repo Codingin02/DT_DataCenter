@@ -118,7 +118,10 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
   assert.match(html, /id="registration-source" disabled/);
   assert.match(html, /id="start-registration" type="button" disabled/);
   assert.doesNotMatch(html, /SHT31-A|SHT31-B/);
-  assert.match(html, /data-measurement-legend="temperature"[\s\S]*18[\s\S]*22\.5[\s\S]*27/);
+  assert.match(
+    html,
+    /data-measurement-legend="temperature"[\s\S]*data-scale-value="10"[\s\S]*data-scale-value="18"[\s\S]*data-scale-value="27"/
+  );
   assert.match(
     html,
     /data-measurement-legend="humidity"[\s\S]*0[\s\S]*25[\s\S]*50[\s\S]*75[\s\S]*100% RH/
@@ -130,7 +133,7 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
   assert.doesNotMatch(humidityLegend, /Recommended envelope|18–27/);
   assert.doesNotMatch(html, /data-legend-pointer|data-legend-observed/);
   assert.match(main, /viewerPanel\.prepend\(referenceScaleGroup\)/);
-  assert.match(html, /id="analytics-history-chart" class="chart-frame history-chart"/);
+  assert.match(html, /id="analytics-dashboard" class="analytics-dashboard"/);
   assert.match(main, /historyUrl\(/);
   assert.match(main, /scale !== undefined/);
   assert.doesNotMatch(html, />\s*(Safe|Alarm|Critical)\s*</);
@@ -145,15 +148,15 @@ test('frontend configures distinct workspaces around one canonical rack viewer',
 
 test('empty workspaces retain engineering structure and domain diagrams', async () => {
   const html = await readFile(new URL('./index.html', import.meta.url), 'utf8');
-  assert.match(html, /class="hardware-schematic"[\s\S]*ESP32-S3/);
-  assert.match(html, /data-hardware-node="sht31-a"[\s\S]*SHT31 A/);
-  assert.match(html, /data-hardware-node="sht31-b"[\s\S]*SHT31 B/);
-  assert.match(html, /data-hardware-node="inmp441"[\s\S]*INMP441/);
+  assert.match(html, /class="hardware-schematic"[\s\S]*Physical ESP32 sensor wiring/);
+  assert.match(html, /class="identity-row">SHT31 A</);
+  assert.match(html, /class="identity-row">SHT31 B</);
+  assert.match(html, /class="identity-row">INMP441</);
   assert.doesNotMatch(html, /class="asset-state-board"|class="relationship-diagram"|board-face/);
   assert.match(html, /data-stream-filter="environment"[\s\S]*data-stream-filter="device"/);
   assert.match(html, /id="stream-registry-body"/);
   assert.match(html, /id="history-query"[\s\S]*data-history-range="5d"/);
-  assert.match(html, /id="analytics-history-chart"/);
+  assert.match(html, /id="analytics-dashboard"/);
   assert.match(html, /data-history-metric="net_receive_throughput_bytes_per_second"/);
   assert.match(html, /data-history-metric="active_power_w"/);
   assert.match(html, /data-history-metric="temperature"/);
@@ -186,11 +189,11 @@ test('assets hardware topology covers configured wiring and interaction state', 
   assert.match(main, /sht31-b-temperature[\s\S]*sht31-b-humidity/);
   assert.match(main, /hardwareActivity\(records\)[\s\S]*records\.some/);
   assert.match(main, /selectedHardwareKey[\s\S]*setBreadcrumb\(\['Assets', 'Hardware condition'/);
-  assert.match(html, /data-hardware-node="electrical"/);
-  assert.match(html, /data-trace="i2c0"/);
-  assert.match(html, /data-trace="i2c1"/);
-  assert.match(html, /data-trace="i2s0"/);
-  assert.match(html, /Wi-Fi \/ MQTT/);
+  assert.match(html, /data-hardware-secondary="electrical"/);
+  assert.match(html, /data-kind="i2c0"/);
+  assert.match(html, /data-kind="i2c1"/);
+  assert.match(html, /data-kind="i2s0"/);
+  assert.match(html, /Wi-Fi[\s\S]*MQTT/);
   assert.match(html, /Current diagnostics[\s\S]*Manufacturer reference[\s\S]*Wiring/);
   assert.doesNotMatch(html, /Condition history · 5d|data-hardware-evidence/);
   assert.doesNotMatch(html + main, /Remaining life|RUL|Health \d+%|predicted failure/i);
