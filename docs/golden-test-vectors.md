@@ -88,9 +88,13 @@ The firmware test suite validates all of the above:
 
 ## Test command
 
+From the Digital Twin repository root, on Windows with the existing GCC host toolchain:
+
+```powershell
+& ./firmware/esp32s3_datacenter/tests/run_host_tests.ps1
 ```
-pwsh -Command "& { . D:\esp\.espressif\v5.5.5\esp-idf\export.ps1; cd E:\Projects\Digital_Twin\firmware\esp32s3_datacenter; idf.py build }" && gcc -o test_sht31 -I firmware/esp32s3_datacenter/main firmware/esp32s3_datacenter/main/sht31_decode.c firmware/esp32s3_datacenter/tests/sht31_test.c && ./test_sht31
-```
+
+This runner currently targets x86/SSE host diagnostics. It is not a flash command or a verification of the active Arduino board. An ESP-IDF build additionally requires its own configured ESP-IDF environment; do not substitute this separate implementation for the running Arduino sketch. No workstation-specific E: or D: path is required by this documentation.
 
 See the test runner script at `firmware/esp32s3_datacenter/tests/run_host_tests.ps1`
 for the complete host-side test execution.

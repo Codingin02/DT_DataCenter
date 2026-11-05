@@ -1,0 +1,6 @@
+services:
+  nginx:
+    volumes:
+      - ../infra/nginx/funnel.conf:/etc/nginx/conf.d/funnel.conf:ro
+    ports:
+      - '127.0.0.1:8080:8080'

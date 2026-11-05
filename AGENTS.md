@@ -1,8 +1,8 @@
-# Digital Twin Data Center Engineering Rules
+# Digital Twin Engineering Rules
 
-Project: Digital Twin Data Center
+Project: Digital Twin
 Identifier: DT_DataCenter
-Project root: E:\Projects\Digital_Twin
+Project root: USB/Windows Digital Twin; Debian /opt/digital-twin-datacenter
 Owner/admin identifier: bagus
 Active scope: physical acquisition, monitoring, historical analytics, and deployment
 Out of current scope: autonomous control, unsupported measurements, and unapproved deployment targets
@@ -10,7 +10,7 @@ Physical scope: one rack in the lower rack/server environment
 Measurement and communication MCU: ESP32-S3 board carrying ESP32-S3-WROOM-1-N16R8
 Environmental sensors: 2x DFRobot Fermion SHT31 SEN0331 and INMP441
 
-The official product name and all branding are exactly Digital Twin Data Center. Do not append classifications, institutional framing, or context from other projects. Preserve existing technical identifiers, paths, contracts, and safety boundaries.
+The official product name is Digital Twin, as explicitly instructed by the owner. Preserve DT_DataCenter database/repository and existing technical identifiers. Do not rebuild or visually redesign the working application merely for naming changes.
 
 ## Execution
 
@@ -70,7 +70,7 @@ ESP32-S3 owns authoritative acquisition, validation, measurement processing, Wi-
 
 Final surveyed sensor placement, electrical margin characterization, I2S clock measurement, microphone calibration, precise timestamp accuracy, and dedicated-server configuration require their own evidence. Preserve the existing SNTP timing and USB/NVS provisioning; neither is a missing implementation.
 
-The active firmware authority is `E:\Projects\IOT ESP32 Project\Digital Twin Data Center\DT_DataCenter\DT_DataCenter.ino`, using the Arduino ESP32 toolchain and ESP-MQTT. Its existing acquisition code and private `local_config.h` must be preserved. The repository's `firmware/esp32s3_datacenter` is not the authority for the running board.
+The active firmware authority is the original Arduino DT_DataCenter.ino sketch, not the repository ESP-IDF implementation. Private recovered build/sketch artifacts and local_config.h are preserved under firmware/ESP32/recovered; the original .ino has not been located. See firmware/ESP32/README.md. Do not reflash or change acquisition/provisioning without evidence and authorization.
 
 Messaging:
 MQTT
@@ -90,8 +90,7 @@ glTF/GLB
 
 ## Project Environment
 
-Keep project source and project data under:
-E:\Projects\Digital_Twin
+Keep one application source in Digital Twin. Deployment wrappers are deployment/windows and deployment/linux. Keep Debian runtime at /opt/digital-twin-datacenter; do not overwrite live environment/volumes without verification and backup.
 
 Prefer development tools on D: when practical.
 
@@ -99,7 +98,7 @@ The laptop is used for development, configuration, testing, and deployment prepa
 
 The physical project scope is the lower rack/server environment. The upper server MUST NOT be accessed, probed, configured, tested against, deployed to, or modified by this project.
 
-Final runtime targets an authorized dedicated server; deployment there requires separate verification.
+The owner reports a working Debian dedicated-server runtime. Direct access and runtime verification are still required before applying changes; local checks are not evidence of production health.
 
 Keep configured Windows services manual-start unless project requirements explicitly change.
 

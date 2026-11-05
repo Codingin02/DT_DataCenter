@@ -1,0 +1,24 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-DT_DataCenter}
+      POSTGRES_USER: ${PGUSER:-bagus}
+  backend:
+    environment:
+      PGDATABASE: ${PGDATABASE:-DT_DataCenter}
+      PGUSER: ${PGUSER:-bagus}
+      HOST_EXPORTER_PLATFORM: linux
+  mosquitto:
+    volumes:
+      - ./mosquitto/persistent.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt-data:/mosquitto/data
+  node-exporter:
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--web.listen-address=${DT_EXPORTER_BIND_ADDRESS:-0.0.0.0}:9100'
+      - '--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/.+)($$|/)'
+volumes:
+  mqtt-data:
+  postgres-data:
+    name: ${DT_POSTGRES_VOLUME:-dt_datacenter_postgres-data}

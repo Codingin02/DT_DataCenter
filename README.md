@@ -1,77 +1,79 @@
-# Digital Twin Data Center
+# Digital Twin
 
-An operational physical rack monitoring system with ESP32-S3 environmental/acoustic
-acquisition, Shelly electrical measurements, host network telemetry, and historical analytics.
+Monitoring satu rack melalui ESP32-S3 (dua SHT31 dan INMP441), Shelly Plug PM Gen3, dan metrik jaringan host. MQTT → backend Node.js → PostgreSQL → API/SSE → dashboard Three.js/ECharts. Identifier teknis repository tetap `DT_DataCenter`.
 
-The physical scope is one lower-environment rack. The upper server is outside this
-project's access boundary. `DT_DataCenter` remains the internal identifier.
+## Satu source, dua target OS
 
-The active mechanical source is an ESP32-S3 board carrying
-ESP32-S3-WROOM-1-N16R8. Its firmware directly acquires two SEN0331 SHT31 sensors on
-separate 50 kHz I2C controllers and the INMP441 through digital I2S. The active firmware is
-`E:\Projects\IOT ESP32 Project\Digital Twin Data Center\DT_DataCenter\DT_DataCenter.ino`;
-its private `local_config.h` remains outside Git. [`docs/PRD.md`](docs/PRD.md) defines
-requirements and remaining physical gates; [`docs/contracts/foundation.md`](docs/contracts/foundation.md)
-defines the canonical server contract. The frontend uses one procedural 42U Three.js rack and ECharts.
-
-## PostgreSQL backup verification
-
-Set the PostgreSQL environment variables from `.env.example`. `PG_BACKUP_FILE` must not
-already exist, and `PGRESTORE_DATABASE` must identify a disposable database that does
-not already exist.
+Source utama berada langsung di folder **Digital Twin**, bukan di subfolder duplikat. Deployment Debian tetap `/opt/digital-twin-datacenter`; direktori aktif server tidak dipindahkan.
 
 ```text
-npm run backup:database
-npm run test:database:restore
+Digital Twin/
+  backend/ frontend/ assets/ database/
+  firmware/ESP32/                  panduan firmware aktif dan template konfigurasi
+  firmware/esp32s3_datacenter/      implementasi ESP-IDF terpisah, bukan otoritas board aktif
+  docker/                         Compose utama dan override OS
+  infra/nginx/                    Nginx LAN dan listener publik read-only
+  deployment/windows/             PowerShell
+  deployment/linux/               Bash
+  deployment/resources/           image/paket USB satu salinan, tidak dipublikasikan
+  config/windows/ config/linux/   konfigurasi lokal privat
+  config/private/                 arsip credential dan bukti pemulihan; tidak dipublikasikan
+  scripts/ docs/ backups/
 ```
 
-The backup uses PostgreSQL custom format. Restore verification creates the disposable
-database, restores the archive in one transaction, runs the foundation database checks,
-and removes only the database it created.
+### Windows 10/11
 
-## Local runtime
+Docker Desktop harus memakai **Linux containers**. Dari folder Digital Twin:
 
-The canonical local container runtime is `docker/compose.yaml`. It uses the exact local
-PostgreSQL, Mosquitto, and Node images plus the existing project `node_modules`. Set
-`POSTGRES_PASSWORD` through the existing private local configuration or calling
-environment; credentials must never be committed or printed.
-
-Use the existing Start Digital Twin and Stop Digital Twin shortcuts for the local
-application and project-owned monitoring services. The launcher reuses healthy services,
-builds changed application source when necessary, and opens `http://127.0.0.1:3010/`.
-
-For an application-only build/start through the same canonical Compose workflow:
-
-```text
-npm run frontend:build
-docker compose -p dt_datacenter -f docker/compose.yaml build --pull=false
-docker compose -p dt_datacenter -f docker/compose.yaml up -d --pull never
+```powershell
+if (-not (Test-Path .env.windows)) { Copy-Item deployment/windows/.env.example .env.windows }
+# Isi credential sendiri secara privat; jangan menimpa .env.windows yang sudah tersedia.
+& ./deployment/windows/install.ps1
+& ./deployment/windows/start.ps1
+& ./deployment/windows/status.ps1
+& ./deployment/windows/stop.ps1
 ```
 
-The operational endpoint and Compose default are `http://127.0.0.1:3010/`.
-Nginx separately proxies the same application at `http://127.0.0.1/`; port 3010 is
-served directly by the existing backend, not by Nginx. `DT_HTTP_BIND_ADDRESS` and
-`DT_HTTP_PORT` control only the host-side application endpoint; the Node process listens
-on the container interface required by Docker forwarding. PostgreSQL remains internal to
-the Compose network.
+Pada USB, `.env.windows` sudah disiapkan memakai credential yang ditemukan. Jangan menggantinya dengan template kosong. Windows Exporter dipasang pada host Windows, bukan memakai Node Exporter Linux. Collector host dinonaktifkan sampai URL exporter dan nama NIC Windows diisi berdasarkan pengukuran aktual. Lihat [Windows](docs/WINDOWS.md).
 
-Mosquitto requires authentication and publishes only on `127.0.0.1:1883` by default.
-`MQTT_USERNAME` and `MQTT_PASSWORD` may provide a broker credential distinct from the
-local runtime credential. On Windows, the launcher preserves that loopback binding and
-owns a single portproxy mapping from the active Wi-Fi IPv4 port 1883 to `127.0.0.1:1883`.
-Its firewall rule is scoped to the active address, subnet, and network profile. Network
-changes require the existing authorization/provisioning flow; no address or credential
-is hardcoded here. USB/NVS provisioning remains the ESP32 fallback, and Shelly updates
-that require reboot request consent. `DT_MQTT_BIND_ADDRESS` and `DT_MQTT_PORT` remain
-deployment configuration for other authorized hosts.
+### Debian
 
-Authorized Linux deployment uses the same Compose project with
-`docker/compose.server.yaml`. Its TLS broker, VPN-only web binding, restored-volume
-requirement, image transfer, and rollback procedure are defined in
-[`docs/architecture-nginx.md`](docs/architecture-nginx.md#authorized-linux-server-deployment).
+```bash
+cd /opt/digital-twin-datacenter
+# Hanya untuk instalasi baru; JANGAN timpa environment server existing.
+(umask 077; cp -n deployment/linux/.env.example .env.server)
+# Isi credential privat dan verifikasi NIC, broker LAN, database serta volume.
+bash deployment/linux/install.sh
+bash deployment/linux/start.sh
+bash deployment/linux/status.sh
+```
 
-Stop Digital Twin preserves PostgreSQL volumes and telemetry history while stopping
-launcher-owned components. Application-only `docker compose -p dt_datacenter -f docker/compose.yaml stop`
-also preserves the containers and volumes; never use `down -v`
-or volume cleanup. The local deployment is operational. Dedicated-server deployment,
-network policy, and TLS still require target-environment verification.
+Installer tidak memindahkan deployment, menambah alias IP, mengubah Wi-Fi atau mengonfigurasi Shelly. `.env.server` server belum berhasil diambil; `.env`/`.env.debian` USB dipertahankan sebagai bukti konfigurasi yang ditemukan, bukan diklaim identik dengan server. Lihat [Linux](docs/LINUX.md).
+
+## Website dan keamanan
+
+Website LAN melalui Nginx port 80. PostgreSQL tidak dipublikasikan; port aplikasi host default 3010 terikat loopback. MQTT tetap LAN dan tidak boleh diteruskan ke internet. Exporter Linux perlu dijangkau container melalui host gateway dan dibatasi firewall host.
+
+Tailscale Funnel hanya diarahkan ke listener Nginx khusus **127.0.0.1:8080**, bukan listener LAN yang masih memiliki fungsi registrasi. Listener publik menolak registrasi, metrik dan endpoint yang tidak diizinkan. Dashboard publik read-only tetap mengungkap telemetri/history; persetujuan pemilik data wajib sebelum aktivasi. [Panduan Funnel](docs/TAILSCALE.md).
+
+## Data dan pemulihan
+
+`stop` mempertahankan volume. Jangan gunakan `down -v`, `volume prune`, atau restore menimpa database operasional. Wrapper backup menghasilkan PostgreSQL custom archive dan menolak overwrite; wrapper restore hanya menerima database disposable **baru** dengan prefix `dt_datacenter_restore_`. [Database](docs/DATABASE.md).
+
+## Dokumentasi
+
+- [PRD](docs/PRD.md), [arsitektur](docs/ARCHITECTURE.md), [kontrak](docs/contracts/foundation.md).
+- [Instalasi](docs/INSTALLATION.md), [konfigurasi dan seluruh variabel](docs/CONFIGURATION.md), [Docker](docs/DOCKER.md).
+- [MQTT dan Shelly](docs/MQTT.md), [jaringan dan RX/TX](docs/NETWORK.md), [operasi](docs/OPERATIONS.md).
+- [Firmware ESP32](firmware/ESP32/README.md), [troubleshooting](docs/TROUBLESHOOTING.md), [status pekerjaan dan pengujian](docs/COMPLETION.md).
+
+## Validasi pengembangan
+
+Gunakan Node.js 24.20.0 (sesuai image) atau versi kompatibel dengan Vite 8.
+
+```bash
+npm ci --ignore-scripts
+npm run check
+```
+
+Jangan commit environment operasional, credential, firmware build, database runtime atau arsip image. USB FAT32 tidak menyediakan proteksi permission Unix yang memadai: jaga akses fisik USB dan gunakan `chmod 600` setelah menyalin secret ke filesystem Linux.

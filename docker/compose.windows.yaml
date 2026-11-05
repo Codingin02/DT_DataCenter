@@ -1,0 +1,22 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-DT_DataCenter}
+      POSTGRES_USER: ${PGUSER:-bagus}
+  backend:
+    environment:
+      PGDATABASE: ${PGDATABASE:-DT_DataCenter}
+      PGUSER: ${PGUSER:-bagus}
+      HOST_EXPORTER_PLATFORM: windows
+      HOST_EXPORTER_URL: ${HOST_EXPORTER_URL:-}
+      HOST_NETWORK_NIC: ${HOST_NETWORK_NIC:-}
+  mosquitto:
+    volumes:
+      - ./mosquitto/persistent.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt-data:/mosquitto/data
+  node-exporter:
+    profiles: ['linux-only']
+volumes:
+  mqtt-data:
+  postgres-data:
+    name: ${DT_POSTGRES_VOLUME:-dt_datacenter_postgres-data}

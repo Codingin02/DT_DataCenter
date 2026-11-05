@@ -1,11 +1,11 @@
-# Digital Twin Data Center — Product Requirements
+# Digital Twin — Product Requirements
 
-**Project:** Digital Twin Data Center
+**Project:** Digital Twin
 **Internal identifier:** DT_DataCenter
 **Physical object:** One lower-environment rack
 **Document role:** Product and implementation contract for Codex
-**Repository root:** `E:\Projects\Digital_Twin`
-**Canonical PRD path:** `E:\Projects\Digital_Twin\docs\PRD.md`
+**Repository root:** `Digital Twin/` (USB / Windows); `/opt/digital-twin-datacenter` (Debian runtime)
+**Canonical PRD path:** `docs/PRD.md` relative to the repository root
 **Current scope:** Physical acquisition, monitoring, historical analytics, and deployment
 **Current data direction:** Physical → Virtual
 **Out of current scope:** R2 Replication, R3 Reality, R4 Relational
@@ -15,7 +15,9 @@
 
 ## 0. How Codex MUST use this document
 
-This file defines the requirements of Digital Twin Data Center. `DT_DataCenter` is its internal identifier, not alternate branding.
+This file defines the requirements of Digital Twin. `DT_DataCenter` remains the internal repository/database identifier, not alternate branding.
+
+The deployment authority is one source with OS-specific wrappers under `deployment/windows` and `deployment/linux`. See `CONFIGURATION.md`, `LINUX.md`, `WINDOWS.md` and `TAILSCALE.md` for current operational procedures. The user reports a running Debian deployment; this session has not reached that server. Do not mistake locally validated configuration for server verification. Public Funnel activation requires a separate read-only Nginx listener and approval to publish telemetry.
 
 `AGENTS.md` defines repository execution rules.
 `docs/PRD.md` defines product scope, architecture, contracts, acceptance criteria, and explicit non-goals.
@@ -26,7 +28,7 @@ Codex MUST NOT silently reinterpret, expand, or "future-proof" the project beyon
 
 Codex MUST NOT replace a locked decision because another technology is newer, more popular, or more familiar.
 
-Codex MUST preserve Digital Twin Data Center as the existing operational physical system. Product branding MUST NOT append classifications, institutional framing, or context from other projects.
+Codex MUST preserve Digital Twin as the existing operational physical system. Product branding MUST NOT append classifications, institutional framing, or context from other projects.
 
 ---
 
@@ -49,7 +51,7 @@ A `TBD` is not permission to guess.
 
 ## 2. Product vision
 
-Digital Twin Data Center MUST represent its physical rack and measured state using real acquisition, canonical telemetry, and traceable observations.
+Digital Twin MUST represent its physical rack and measured state using real acquisition, canonical telemetry, and traceable observations.
 
 The active physical scope is one rack in the lower rack/server environment. The upper
 server is outside every discovery, test,
@@ -130,13 +132,13 @@ A beautiful GLB without real identity, coordinates, physical telemetry, and trac
 The canonical project name is:
 
 ```text
-Digital Twin Data Center
+Digital Twin
 ```
 
 The project root is:
 
 ```text
-E:\Projects\Digital_Twin
+Digital Twin/
 ```
 
 The canonical PostgreSQL database name is:
@@ -172,7 +174,7 @@ lab-sc
 but site identity MUST remain separate from product branding. The human-readable product name is:
 
 ```text
-Digital Twin Data Center
+Digital Twin
 ```
 
 ---
@@ -363,7 +365,7 @@ VS Code
 Node.js 24.x
 npm 11.x
 Python 3.12.x when needed by tooling
-Bruno API collection under E:\Projects\Digital_Twin\api\bruno
+Bruno API collection under api/bruno relative to Digital Twin/
 Docker Desktop as development convenience only
 ```
 
@@ -373,7 +375,7 @@ VS Code is the working editor, but this PRD is not a VS Code tutorial.
 
 The fixed hardware and digital interfaces are defined in the sensor hardware policy and hardware-role contract below. `docs/contracts/foundation.md` preserves the hardware-neutral identity and telemetry mapping.
 
-The active firmware authority is `E:\Projects\IOT ESP32 Project\Digital Twin Data Center\DT_DataCenter\DT_DataCenter.ino`. It uses the Arduino ESP32 toolchain, direct dual-SHT31 acquisition, ESP_I2S capture, RMS/Peak dBFS processing, ESP-MQTT QoS 1, retained device status, Last Will, and SNTP-backed source time. Preserve its private `local_config.h` and USB/NVS provisioning. `firmware/esp32s3_datacenter` is a separate repository implementation and MUST NOT be treated as the authority for the running board. Physical telemetry operation has been verified; acoustic calibration, precise clock accuracy, final surveyed positions, and deployment on the dedicated server still require their own evidence.
+The active firmware authority is the existing Arduino `DT_DataCenter.ino` sketch from the original development workstation. USB contains private recovered build/sketch artifacts under `firmware/ESP32/recovered`, but the original `.ino` has not been located; see `firmware/ESP32/README.md`. Preserve the private `local_config.h`, USB/NVS provisioning, acquisition, MQTT payload and Wi-Fi credentials. `firmware/esp32s3_datacenter` is a separate ESP-IDF implementation and MUST NOT be substituted as authority for the running board. Prior physical operation is reported; this session does not independently verify board operation, calibration, clock accuracy, sensor placement or server runtime.
 
 ### 11.3 Data and messaging
 
@@ -402,9 +404,7 @@ Prometheus/Grafana are observability tools.
 
 They MUST NOT become the Twin product database.
 
-If the final laboratory server is Linux, a Linux exporter MAY be selected later after server discovery.
-
-Codex MUST NOT install/configure Node Exporter now merely because Linux is possible.
+Debian deployment uses Node Exporter `prom/node-exporter:v1.9.0` with host networking and host proc/sys mounts. The backend collector must use the actual server NIC; reference enp11s0 differs from the recovered USB env enp0s3. Verify before applying configuration. Windows uses Windows Exporter on the host, never Linux host metrics from Docker Desktop's VM as a substitute for Windows NIC telemetry.
 
 ### 11.5 Web and 3D runtime
 
@@ -1090,9 +1090,7 @@ Codex MUST NOT route CPU/RAM/network data through the environmental sensor path 
 
 ### 26.1 Exporter selection gate
 
-Current development host is Windows and uses Windows Exporter.
-
-Final server exporter MUST be selected after real server OS discovery.
+Windows deployment supports Windows Exporter; Debian supports Node Exporter. Source code for parsing/rates remains shared. Exporter URL and exact NIC label require verification on each actual host; do not invent measurements or copy Linux interface names to Windows.
 
 ### 26.2 Redfish
 
@@ -1746,7 +1744,7 @@ The following are not TBD unless the user explicitly changes the PRD:
 
 ```text
 Project object       = one physical rack
-Project name         = Digital Twin Data Center
+Project name         = Digital Twin
 Internal identifier  = DT_DataCenter
 Current scope        = physical acquisition, monitoring, historical analytics, deployment
 Current direction    = physical → virtual
@@ -1952,7 +1950,7 @@ If the answer reveals a scope violation, Codex MUST stop that implementation pat
 When context is tight, Codex may use this summary, but it MUST defer to the full PRD for detail:
 
 ```text
-Digital Twin Data Center is an operational physical rack monitoring system.
+Digital Twin is an operational physical rack monitoring system.
 Internal identifier: DT_DataCenter.
 
 CURRENT SCOPE:
@@ -2016,7 +2014,7 @@ do not invent TBDs
 
 ## 54. Final instruction to Codex
 
-Preserve Digital Twin Data Center as one traceable operational system with real physical acquisition, canonical storage, spatial reference geometry, historical analytics, and reproducible deployment. Do not add another project identity or rebuild completed capabilities.
+Preserve Digital Twin as one traceable operational system with real physical acquisition, canonical storage, spatial reference geometry, historical analytics, and reproducible deployment. Do not add another project identity or rebuild completed capabilities.
 
 Do not dilute the project into a generic dashboard.
 
