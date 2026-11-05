@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
+const shCmd = process.platform === 'win32' ? 'sh' : '/bin/sh';
+
 test('compatibility setup and runtime delegate to one Linux deployment without changing devices', () => {
   const dir = mkdtempSync(join(tmpdir(), 'dt compatibility '));
   try {
@@ -26,7 +28,7 @@ test('compatibility setup and runtime delegate to one Linux deployment without c
       ['runtime.sh', ['status', 'server'], 'delegated-status'],
       ['setup-linux.sh', [], 'delegated-install'],
     ]) {
-      const result = spawnSync('/bin/sh', [join(dir, 'scripts', file), ...args], {
+      const result = spawnSync(shCmd, [join(dir, 'scripts', file), ...args], {
         encoding: 'utf8',
       });
       assert.equal(result.status, 0, result.stderr);
@@ -38,7 +40,7 @@ test('compatibility setup and runtime delegate to one Linux deployment without c
 });
 
 test('Shelly configuration tool requires explicit permission before discovery or reconfiguration', () => {
-  const result = spawnSync('/bin/sh', [fileURLToPath(new URL('shelly-sync.sh', import.meta.url))], {
+  const result = spawnSync(shCmd, [fileURLToPath(new URL('shelly-sync.sh', import.meta.url))], {
     encoding: 'utf8',
     env: { ...process.env, DT_ALLOW_DEVICE_RECONFIGURATION: '' },
   });
@@ -67,7 +69,7 @@ test('Shelly tool refuses missing or invalid explicit device addresses without n
       ['192.168.1.167', '1'],
       ['192.168.1.167', '192.168.1.999'],
     ]) {
-      const result = spawnSync('/bin/sh', [script, ...args], {
+      const result = spawnSync(shCmd, [script, ...args], {
         encoding: 'utf8',
         env: {
           ...process.env,

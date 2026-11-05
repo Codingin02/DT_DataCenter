@@ -1,0 +1,108 @@
+{
+  "description": "Tailscale Funnel Public Route Allowlist and Access Controls",
+  "version": "1.0.0",
+  "gateway_binding": "127.0.0.1:8080",
+  "allowed_routes": [
+    {
+      "pattern": "/",
+      "methods": ["GET"],
+      "type": "exact",
+      "purpose": "Halaman antarmuka web 3D Nirax dashboard (HTML)"
+    },
+    {
+      "pattern": "/assets/*.js",
+      "methods": ["GET"],
+      "type": "regex",
+      "purpose": "Bundled JavaScript frontend"
+    },
+    {
+      "pattern": "/assets/*.css",
+      "methods": ["GET"],
+      "type": "regex",
+      "purpose": "Styling CSS frontend"
+    },
+    {
+      "pattern": "/models/rack.glb",
+      "methods": ["GET"],
+      "type": "exact",
+      "purpose": "Model 3D Binary glTF server rack"
+    },
+    {
+      "pattern": "/api/current-state/events",
+      "methods": ["GET"],
+      "type": "exact",
+      "purpose": "Server-Sent Events (SSE) telemetry stream untuk visualisasi real-time"
+    },
+    {
+      "pattern": "/api/assets/:id/current-state",
+      "methods": ["GET"],
+      "type": "regex",
+      "purpose": "Membaca kondisi metrik sensor saat ini per unit server"
+    },
+    {
+      "pattern": "/api/assets/:id/history",
+      "methods": ["GET"],
+      "type": "regex",
+      "purpose": "Membaca histori data telemetri 5 hari per unit server"
+    }
+  ],
+  "blocked_routes": [
+    {
+      "pattern": "/api/spatial-registration",
+      "status": 403,
+      "reason": "Endpoint mutasi / tulis posisi sensor (hanya boleh diakses dari LAN)"
+    },
+    {
+      "pattern": "/metrics",
+      "status": 404,
+      "reason": "Prometheus exporter internal metrics (keamanan infrastruktur)"
+    },
+    {
+      "pattern": "/ready",
+      "status": 404,
+      "reason": "Kubernetes/Docker probe internal"
+    },
+    {
+      "pattern": "/health",
+      "status": 404,
+      "reason": "Health probe internal"
+    },
+    {
+      "pattern": "/nginx-health",
+      "status": 404,
+      "reason": "Health probe internal Nginx"
+    },
+    {
+      "pattern": "/api/* (lainnya)",
+      "status": 404,
+      "reason": "Default deny untuk semua API yang tidak terdaftar di allowlist"
+    },
+    {
+      "pattern": "* (selain allowlist)",
+      "status": 404,
+      "reason": "Default deny untuk semua path tidak dikenal"
+    }
+  ],
+  "excluded_services": [
+    {
+      "service": "PostgreSQL",
+      "port": 5432,
+      "visibility": "Internal Docker Network Only (tidak dipublikasikan ke host maupun internet)"
+    },
+    {
+      "service": "Mosquitto MQTT",
+      "port": 1883,
+      "visibility": "LAN Only (0.0.0.0:1883 di host server untuk ESP32/Shelly, tidak diekspos ke Funnel)"
+    },
+    {
+      "service": "Node Exporter",
+      "port": 9100,
+      "visibility": "Host internal (tidak diekspos ke Funnel)"
+    },
+    {
+      "service": "Backend Raw Port",
+      "port": 3000,
+      "visibility": "Internal Docker Network Only"
+    }
+  ]
+}

@@ -167,7 +167,7 @@ test(
       ['MIC_SD', 6],
     ])
       assert.match(text, new RegExp(`#define ${name} ${pin}\\b`));
-    assert.match(text, /I2C_A\.begin\(SHT_A_SDA, SHT_A_SCL, 50000\)/);
-    assert.match(text, /I2C_B\.begin\(SHT_B_SDA, SHT_B_SCL, 50000\)/);
+    assert.match(text, /I2C_A\.begin\(\s*SHT_A_SDA,\s*SHT_A_SCL,\s*50000\s*\)/);
+    assert.match(text, /I2C_B\.begin\(\s*SHT_B_SDA,\s*SHT_B_SCL,\s*50000\s*\)/);
   }
 );

@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
+# deployment/linux/install-tailscale.sh
+# Memasang Tailscale pada host Debian dalam mode ROOT (su -).
+
 set -Eeuo pipefail
-[[ "$(id -u)" == 0 ]] || { echo 'Use sudo to install Tailscale on the Debian host.' >&2; exit 1; }
+[[ "$(id -u)" == 0 ]] || { echo 'Error: Harus dijalankan sebagai root (su -).' >&2; exit 1; }
 . /etc/os-release
-[[ "$ID" == debian ]] || exit 1
+[[ "$ID" == debian ]] || { echo 'Error: Membutuhkan sistem operasi Debian.' >&2; exit 1; }
+
 apt-get update
 apt-get install -y ca-certificates curl gnupg
 install -m 0755 -d /usr/share/keyrings
@@ -12,4 +16,4 @@ apt-get update
 apt-get install -y tailscale
 systemctl enable --now tailscaled
 tailscale version
-printf '%s\n' 'Installed on host. Run sudo tailscale up and complete account login yourself; no auth key is stored here.'
+printf '%s\n' 'Installed on host. Run tailscale up and complete account login yourself; no auth key is stored here.'

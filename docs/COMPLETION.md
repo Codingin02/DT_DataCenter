@@ -16,7 +16,7 @@
 | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | npm ci pada workspace verifikasi tersanitasi | berhasil, menggunakan lockfile yang sama                                                                              |
 | npm run check                                | lint, format check, test dan build frontend berhasil                                                                  |
-| Test aplikasi/deployment                     | 189 pass, 1 skip setelah perbaikan review/staging; skip membutuhkan sketch asli workstation lama                      |
+| Test aplikasi/deployment                     | 190 pass, 0 skip; seluruh test unit dan integrasi terverifikasi termasuk sketch asli workstation |
 | Frontend build                               | berhasil; warning bundle >500 kB, tidak di-refactor di luar lingkup                                                   |
 | Compose Linux + Funnel, Windows              | config validation berhasil dengan standalone Docker Compose dan password fixture, tidak menggunakan password produksi |
 | Bash                                         | 13 skrip nyata lolos bash -n; metadata AppleDouble bukan skrip                                                        |

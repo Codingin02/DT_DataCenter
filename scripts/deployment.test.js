@@ -13,11 +13,20 @@ function linux(action, extra = [], configured = true, environment = {}) {
   try {
     mkdirSync(join(dir, 'deployment/linux'), { recursive: true });
     mkdirSync(join(dir, 'bin'));
+    let bashEnv = '';
     if (action === 'update') {
       writeFileSync(join(dir, 'deployment/linux/backup.sh'), '#!/bin/sh\necho backup-fixture\n');
       writeFileSync(join(dir, 'bin/git'), '#!/bin/sh\nif [ "$1" = branch ]; then echo main; fi\n', {
         mode: 0o755,
       });
+      if (process.platform === 'win32') {
+        const envScript = join(dir, 'bash_env.sh');
+        writeFileSync(
+          envScript,
+          'git() { if [ "$1" = branch ]; then echo main; fi; }\nexport -f git\n'
+        );
+        bashEnv = envScript.replace(/\\/g, '/');
+      }
     }
     for (const file of ['manage.sh', `${action}.sh`]) {
       copyFileSync(new URL(`deployment/linux/${file}`, root), join(dir, 'deployment/linux', file));
@@ -30,12 +39,24 @@ function linux(action, extra = [], configured = true, environment = {}) {
         mode: 0o755,
       }
     );
-    return spawnSync('/bin/bash', [join(dir, `deployment/linux/${action}.sh`), ...extra], {
+    const bashCmd =
+      process.platform === 'win32'
+        ? ['D:/Program Files/Git/bin/bash.exe', 'C:/Program Files/Git/bin/bash.exe'].find((p) => {
+            try {
+              return readFileSync(p) && true;
+            } catch {
+              return false;
+            }
+          }) || 'bash'
+        : '/bin/bash';
+    const posixBin = join(dir, 'bin').replace(/\\/g, '/');
+    return spawnSync(bashCmd, [join(dir, `deployment/linux/${action}.sh`), ...extra], {
       encoding: 'utf8',
       env: {
         ...process.env,
         DT_ENV_FILE: '',
-        PATH: `${join(dir, 'bin')}:${process.env.PATH}`,
+        BASH_ENV: bashEnv,
+        PATH: `${posixBin}:${process.env.PATH}`,
         ...environment,
       },
     });

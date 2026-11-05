@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="100%" height="100%">
+  <rect width="1000" height="480" fill="#0d1117"/>
+  <text x="30" y="38" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="bold">Digital Twin Data Center — Sensor &amp; MQTT Telemetry Sequence</text>
+  <text x="30" y="60" fill="#8b949e" font-family="sans-serif" font-size="12">Hardware Interfacing • Timing Invariants • Packet Validation • Storage Pipeline</text>
+
+  <!-- Flow Steps -->
+  <!-- Step 1: ESP32 Acquisition -->
+  <rect x="40" y="100" width="180" height="320" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="50" y="115" width="160" height="30" rx="4" fill="#1f6feb"/>
+  <text x="65" y="135" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">1. ESP32 Acquisition</text>
+  <text x="55" y="170" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">SHT31 (A &amp; B):</text>
+  <text x="55" y="190" fill="#8b949e" font-family="sans-serif" font-size="10">• I2C 50 kHz, 1 Hz Polling</text>
+  <text x="55" y="205" fill="#8b949e" font-family="sans-serif" font-size="10">• High Repeatability</text>
+  <text x="55" y="220" fill="#8b949e" font-family="sans-serif" font-size="10">• CRC-8 Checksum valid</text>
+  
+  <text x="55" y="255" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">INMP441 Microphone:</text>
+  <text x="55" y="275" fill="#8b949e" font-family="sans-serif" font-size="10">• I2S 48 kHz 24-bit Left Ch</text>
+  <text x="55" y="290" fill="#8b949e" font-family="sans-serif" font-size="10">• BCLK 3.072 MHz Philips</text>
+  <text x="55" y="305" fill="#8b949e" font-family="sans-serif" font-size="10">• RMS &amp; Peak in dBFS</text>
+
+  <text x="55" y="340" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">Shelly Plug PM Gen3:</text>
+  <text x="55" y="360" fill="#8b949e" font-family="sans-serif" font-size="10">• Native Power (W)</text>
+  <text x="55" y="375" fill="#8b949e" font-family="sans-serif" font-size="10">• Voltage (V), Current (A)</text>
+
+  <!-- Step 2: MQTT Broker -->
+  <rect x="270" y="100" width="180" height="320" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="280" y="115" width="160" height="30" rx="4" fill="#238636"/>
+  <text x="295" y="135" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">2. Mosquitto Broker</text>
+  <text x="285" y="170" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">MQTT Ingestion:</text>
+  <text x="285" y="190" fill="#8b949e" font-family="sans-serif" font-size="10">• Host Port: 1883 (LAN)</text>
+  <text x="285" y="205" fill="#8b949e" font-family="sans-serif" font-size="10">• QoS: 1 (At least once)</text>
+  <text x="285" y="220" fill="#8b949e" font-family="sans-serif" font-size="10">• Client: dt-datacenter</text>
+  <text x="285" y="235" fill="#8b949e" font-family="sans-serif" font-size="10">• Session Expiry: 86400s</text>
+
+  <text x="285" y="275" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">Topics:</text>
+  <text x="285" y="295" fill="#7ee787" font-family="sans-serif" font-size="10">• dt/telemetry</text>
+  <text x="285" y="310" fill="#7ee787" font-family="sans-serif" font-size="10">• dt/shelly</text>
+  <text x="285" y="325" fill="#7ee787" font-family="sans-serif" font-size="10">• dt/status</text>
+
+  <!-- Step 3: Backend Ingestion -->
+  <rect x="500" y="100" width="200" height="320" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="510" y="115" width="180" height="30" rx="4" fill="#8957e5"/>
+  <text x="525" y="135" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">3. Backend Ingestion</text>
+  <text x="515" y="170" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">AJV Schema Validation:</text>
+  <text x="515" y="190" fill="#8b949e" font-family="sans-serif" font-size="10">• Foundation Contract spec</text>
+  <text x="515" y="205" fill="#8b949e" font-family="sans-serif" font-size="10">• Strict Metric Unit Check</text>
+  <text x="515" y="220" fill="#8b949e" font-family="sans-serif" font-size="10">• Boot Identity Tracking</text>
+  
+  <text x="515" y="255" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">State Fanout:</text>
+  <text x="515" y="275" fill="#8b949e" font-family="sans-serif" font-size="10">• In-memory Live State Cache</text>
+  <text x="515" y="290" fill="#8b949e" font-family="sans-serif" font-size="10">• SSE Stream Emitter</text>
+  <text x="515" y="305" fill="#8b949e" font-family="sans-serif" font-size="10">• Async Batch DB Ingestion</text>
+
+  <!-- Step 4: Storage & Visualization -->
+  <rect x="750" y="100" width="210" height="320" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="760" y="115" width="190" height="30" rx="4" fill="#da3633"/>
+  <text x="775" y="135" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">4. Database &amp; Client</text>
+  <text x="765" y="170" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">PostgreSQL (Port 5432):</text>
+  <text x="765" y="190" fill="#8b949e" font-family="sans-serif" font-size="10">• 5-Day Bucketed Raw Records</text>
+  <text x="765" y="205" fill="#8b949e" font-family="sans-serif" font-size="10">• Spatial Sensor Locations</text>
+  <text x="765" y="220" fill="#8b949e" font-family="sans-serif" font-size="10">• Device Operational States</text>
+
+  <text x="765" y="260" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">Clients (Browser):</text>
+  <text x="765" y="280" fill="#7ee787" font-family="sans-serif" font-size="10">• LAN: http://192.168.1.167:80</text>
+  <text x="765" y="295" fill="#f0883e" font-family="sans-serif" font-size="10">• Public: https://*.ts.net (Funnel)</text>
+  <text x="765" y="310" fill="#8b949e" font-family="sans-serif" font-size="10">• Real-Time Heatmap Updates</text>
+  <text x="765" y="325" fill="#8b949e" font-family="sans-serif" font-size="10">• Interactive ECharts Analytics</text>
+</svg>

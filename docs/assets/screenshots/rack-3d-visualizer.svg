@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="100%" height="100%">
+  <rect width="1000" height="600" fill="#0b0f14"/>
+  <text x="40" y="45" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="bold">Three.js / WebGL 3D Nirax Server Cabinet Mesh Model</text>
+  <text x="40" y="70" fill="#8b949e" font-family="sans-serif" font-size="12">Interactive GLB Model (assets/models/rack.glb) with Real-Time Thermal Gradient Particles &amp; Acoustic Rings</text>
+
+  <!-- Server Rack Frame 3D Projection -->
+  <polygon points="350,130 650,130 730,190 430,190" fill="#1b222d" stroke="#388bfd" stroke-width="2"/>
+  <polygon points="350,130 430,190 430,550 350,490" fill="#131922" stroke="#388bfd" stroke-width="2"/>
+  <polygon points="430,190 730,190 730,550 430,550" fill="#0d1117" stroke="#388bfd" stroke-width="2"/>
+  <polygon points="650,130 730,190 730,550 650,490" fill="#161c26" stroke="#388bfd" stroke-width="2"/>
+
+  <!-- Server Shelves inside 42U -->
+  <rect x="440" y="210" width="280" height="24" rx="2" fill="#21262d" stroke="#30363d"/>
+  <rect x="440" y="240" width="280" height="24" rx="2" fill="#21262d" stroke="#30363d"/>
+  <rect x="440" y="270" width="280" height="24" rx="2" fill="#21262d" stroke="#30363d"/>
+  <rect x="440" y="300" width="280" height="24" rx="2" fill="#21262d" stroke="#30363d"/>
+
+  <!-- Active Lower Server -->
+  <rect x="440" y="390" width="280" height="70" rx="3" fill="#1c2430" stroke="#58a6ff" stroke-width="1.5"/>
+  <circle cx="460" cy="425" r="4" fill="#3fb950"/>
+  <circle cx="475" cy="425" r="4" fill="#58a6ff"/>
+  <text x="495" y="430" fill="#c9d1d9" font-family="sans-serif" font-size="12" font-weight="600">Active Sensor Node: SEN0331 A &amp; B</text>
+
+  <!-- Heatmap Particle Cloud simulation -->
+  <circle cx="560" cy="425" r="45" fill="#f85149" fill-opacity="0.25"/>
+  <circle cx="560" cy="425" r="22" fill="#d29922" fill-opacity="0.35"/>
+  <circle cx="560" cy="425" r="8" fill="#ff7b72"/>
+
+  <!-- Acoustic Waves from INMP441 -->
+  <ellipse cx="660" cy="425" rx="15" ry="30" fill="none" stroke="#a371f7" stroke-width="1.5" stroke-dasharray="3,3"/>
+  <ellipse cx="660" cy="425" rx="30" ry="50" fill="none" stroke="#a371f7" stroke-width="1.5" opacity="0.6"/>
+  <ellipse cx="660" cy="425" rx="45" ry="70" fill="none" stroke="#a371f7" stroke-width="1" opacity="0.3"/>
+
+  <!-- Annotations -->
+  <line x1="240" y1="220" x2="440" y2="220" stroke="#8b949e" stroke-dasharray="2,2"/>
+  <text x="120" y="225" fill="#8b949e" font-family="sans-serif" font-size="12">Top Rack Cavity (42U)</text>
+
+  <line x1="240" y1="425" x2="440" y2="425" stroke="#58a6ff"/>
+  <circle cx="240" cy="425" r="4" fill="#58a6ff"/>
+  <text x="60" y="420" fill="#58a6ff" font-family="sans-serif" font-size="13" font-weight="bold">Target Lower Unit</text>
+  <text x="60" y="440" fill="#c9d1d9" font-family="sans-serif" font-size="11">SHT31 I2C0 &amp; I2C1 (50 kHz)</text>
+  <text x="60" y="455" fill="#a371f7" font-family="sans-serif" font-size="11">INMP441 I2S 48kHz 24-bit</text>
+
+  <rect x="760" y="200" width="200" height="180" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="775" y="225" fill="#c9d1d9" font-family="sans-serif" font-size="13" font-weight="bold">Three.js Render Pipeline</text>
+  <text x="775" y="250" fill="#8b949e" font-family="sans-serif" font-size="11">• GLTFLoader (DRACO)</text>
+  <text x="775" y="270" fill="#8b949e" font-family="sans-serif" font-size="11">• OrbitControls</text>
+  <text x="775" y="290" fill="#8b949e" font-family="sans-serif" font-size="11">• Shader Point Cloud</text>
+  <text x="775" y="310" fill="#8b949e" font-family="sans-serif" font-size="11">• Dynamic Acoustic Rings</text>
+  <text x="775" y="330" fill="#8b949e" font-family="sans-serif" font-size="11">• Spatial Raycaster Pick</text>
+  <text x="775" y="350" fill="#7ee787" font-family="sans-serif" font-size="11">● 60 FPS Target Render</text>
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 450" width="100%" height="100%">
+  <rect width="1000" height="450" fill="#0d1117"/>
+  <text x="30" y="38" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="bold">Digital Twin Data Center — LAN vs. Funnel Isolation Matrix</text>
+  <text x="30" y="60" fill="#8b949e" font-family="sans-serif" font-size="12">Security Boundaries • Loopback Binding 127.0.0.1:8080 • Strict Read-Only Filtering</text>
+
+  <!-- Left: Public Internet / Funnel -->
+  <rect x="40" y="90" width="440" height="330" rx="8" fill="#161b22" stroke="#f0883e" stroke-width="1.5"/>
+  <rect x="55" y="105" width="410" height="30" rx="4" fill="#bd561d"/>
+  <text x="70" y="126" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">Jalur Publik: Tailscale Funnel (HTTPS: 443)</text>
+
+  <rect x="55" y="150" width="410" height="70" rx="6" fill="#21262d" stroke="#30363d"/>
+  <text x="70" y="175" fill="#7ee787" font-family="sans-serif" font-size="12" font-weight="bold">✓ Diizinkan (Read-Only Telemetri &amp; UI):</text>
+  <text x="70" y="195" fill="#c9d1d9" font-family="sans-serif" font-size="11">• GET / (Antarmuka 3D Nirax Dashboard)</text>
+  <text x="70" y="210" fill="#c9d1d9" font-family="sans-serif" font-size="11">• GET /assets/*.js, *.css, /models/rack.glb</text>
+  <text x="70" y="225" fill="#c9d1d9" font-family="sans-serif" font-size="11">• GET /api/current-state/events (SSE) &amp; /api/assets/:id/*</text>
+
+  <rect x="55" y="240" width="410" height="110" rx="6" fill="#21262d" stroke="#da3633"/>
+  <text x="70" y="265" fill="#ff7b72" font-family="sans-serif" font-size="12" font-weight="bold">✗ Ditolak Mutlak (Blocked):</text>
+  <text x="70" y="285" fill="#8b949e" font-family="sans-serif" font-size="11">• POST /api/spatial-registration (Status 403 Forbidden)</text>
+  <text x="70" y="300" fill="#8b949e" font-family="sans-serif" font-size="11">• GET /metrics, /health, /ready (Status 404 Not Found)</text>
+  <text x="70" y="315" fill="#8b949e" font-family="sans-serif" font-size="11">• PostgreSQL (5432) &amp; Mosquitto (1883) tidak diekspos</text>
+  <text x="70" y="330" fill="#8b949e" font-family="sans-serif" font-size="11">• Seluruh metode HTTP POST / PUT / DELETE ditolak</text>
+
+  <text x="70" y="375" fill="#8b949e" font-family="sans-serif" font-size="11">Target Loopback Host: <tspan fill="#58a6ff" font-weight="bold">http://127.0.0.1:8080</tspan> (tidak ada bind ke 0.0.0.0)</text>
+
+  <!-- Right: Laboratory LAN -->
+  <rect x="520" y="90" width="440" height="330" rx="8" fill="#161b22" stroke="#238636" stroke-width="1.5"/>
+  <rect x="535" y="105" width="410" height="30" rx="4" fill="#238636"/>
+  <text x="550" y="126" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">Jalur Internal: LAN Laboratorium (192.168.1.167)</text>
+
+  <rect x="535" y="150" width="410" height="120" rx="6" fill="#21262d" stroke="#30363d"/>
+  <text x="550" y="175" fill="#7ee787" font-family="sans-serif" font-size="12" font-weight="bold">✓ Layanan Operasional Penuh:</text>
+  <text x="550" y="195" fill="#c9d1d9" font-family="sans-serif" font-size="11">• HTTP :80 (Web Dashboard LAN Lengkap)</text>
+  <text x="550" y="210" fill="#c9d1d9" font-family="sans-serif" font-size="11">• Registrasi &amp; modifikasi posisi spasial sensor diizinkan</text>
+  <text x="550" y="225" fill="#c9d1d9" font-family="sans-serif" font-size="11">• MQTT :1883 (ESP32-S3 &amp; Shelly Ingestion)</text>
+  <text x="550" y="240" fill="#c9d1d9" font-family="sans-serif" font-size="11">• Akses cepat latensi rendah langsung via kabel LAN</text>
+  <text x="550" y="255" fill="#c9d1d9" font-family="sans-serif" font-size="11">• Operasional mandiri jika internet/Tailscale terputus</text>
+
+  <rect x="535" y="285" width="410" height="110" rx="6" fill="#21262d" stroke="#388bfd"/>
+  <text x="550" y="310" fill="#58a6ff" font-family="sans-serif" font-size="12" font-weight="bold">✓ Kemandirian &amp; Redundansi:</text>
+  <text x="550" y="330" fill="#8b949e" font-family="sans-serif" font-size="11">• Dashboard LAN tetap berjalan saat Funnel dimatikan</text>
+  <text x="550" y="345" fill="#8b949e" font-family="sans-serif" font-size="11">• ESP32 &amp; Shelly tidak pernah terhubung ke Funnel</text>
+  <text x="550" y="360" fill="#8b949e" font-family="sans-serif" font-size="11">• Database PostgreSQL tetap terisolasi di Docker network</text>
+</svg>

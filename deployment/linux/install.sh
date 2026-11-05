@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+# deployment/linux/install.sh
+# Memasang dependensi Docker pada Debian dalam mode ROOT (su -).
+
 set -Eeuo pipefail
 if [[ "${1:-}" == --install-docker ]]; then
-  [[ "$(id -u)" == 0 ]] || { echo 'Use sudo for --install-docker.' >&2; exit 1; }
+  [[ "$(id -u)" == 0 ]] || { echo 'Error: Harus dijalankan sebagai root (su -).' >&2; exit 1; }
   . /etc/os-release
   [[ "$ID" == debian ]] || { echo 'This installer requires Debian.' >&2; exit 1; }
   for package in docker.io docker-compose podman-docker containerd runc; do

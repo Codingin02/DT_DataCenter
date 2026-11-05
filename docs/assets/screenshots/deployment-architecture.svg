@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 480" width="100%" height="100%">
+  <rect width="1050" height="480" fill="#0d1117"/>
+  <text x="30" y="38" fill="#58a6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="bold">Digital Twin Data Center — Deployment &amp; Storage Architecture</text>
+  <text x="30" y="60" fill="#8b949e" font-family="sans-serif" font-size="12">Debian 13 Root-Mode Runtime • Safe Rsync Staging • Volume Preservation</text>
+
+  <!-- USB Source -->
+  <rect x="30" y="95" width="220" height="360" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="45" y="110" width="190" height="32" rx="4" fill="#1f6feb"/>
+  <text x="60" y="132" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">USB Drive (DEBIAN 13_7)</text>
+  <text x="50" y="170" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">Mount Path: /mnt/usb (ro)</text>
+  <text x="50" y="195" fill="#8b949e" font-family="sans-serif" font-size="10">• Full Project: Digital Twin/</text>
+  <text x="50" y="210" fill="#8b949e" font-family="sans-serif" font-size="10">• 5 Offline Container Images</text>
+  <text x="50" y="225" fill="#8b949e" font-family="sans-serif" font-size="10">• 41 Offline Debian .deb Pkgs</text>
+  <text x="50" y="240" fill="#8b949e" font-family="sans-serif" font-size="10">• Tailscale 1.104.4 Package</text>
+  <text x="50" y="255" fill="#8b949e" font-family="sans-serif" font-size="10">• Deploy Orchestrator</text>
+  <text x="50" y="285" fill="#7ee787" font-family="sans-serif" font-size="11" font-weight="600">Debian NetInst Boot:</text>
+  <text x="50" y="305" fill="#8b949e" font-family="sans-serif" font-size="10">• Bootable EFI / isolinux</text>
+  <text x="50" y="320" fill="#8b949e" font-family="sans-serif" font-size="10">• Kernel &amp; Initrd preserved</text>
+  <text x="50" y="350" fill="#f0883e" font-family="sans-serif" font-size="11" font-weight="600">Safety Policy:</text>
+  <text x="50" y="370" fill="#8b949e" font-family="sans-serif" font-size="10">• Read-only mount protects USB</text>
+  <text x="50" y="385" fill="#8b949e" font-family="sans-serif" font-size="10">• Zero writes to flash media</text>
+
+  <!-- Staging & Backup Layer -->
+  <rect x="290" y="95" width="230" height="360" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="305" y="110" width="200" height="32" rx="4" fill="#8957e5"/>
+  <text x="320" y="132" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">Staging &amp; Backup</text>
+  
+  <text x="310" y="170" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">Staging Directory:</text>
+  <text x="310" y="190" fill="#8b949e" font-family="sans-serif" font-size="10">• /opt/staging-digital-twin/</text>
+  <text x="310" y="205" fill="#8b949e" font-family="sans-serif" font-size="10">• File validation sandbox</text>
+  <text x="310" y="220" fill="#8b949e" font-family="sans-serif" font-size="10">• Selective rsync synchronization</text>
+
+  <text x="310" y="260" fill="#c9d1d9" font-family="sans-serif" font-size="11" font-weight="600">Backup Base:</text>
+  <text x="310" y="280" fill="#8b949e" font-family="sans-serif" font-size="10">• /opt/backups/digital-twin/</text>
+  <text x="310" y="295" fill="#8b949e" font-family="sans-serif" font-size="10">• .env.server timestamped copy</text>
+  <text x="310" y="310" fill="#8b949e" font-family="sans-serif" font-size="10">• PostgreSQL pg_dump snapshot</text>
+  <text x="310" y="325" fill="#8b949e" font-family="sans-serif" font-size="10">• Docker compose &amp; Nginx config</text>
+  <text x="310" y="340" fill="#8b949e" font-family="sans-serif" font-size="10">• Git commit version manifest</text>
+  <text x="310" y="375" fill="#7ee787" font-family="sans-serif" font-size="11" font-weight="600">Rollback Ready:</text>
+  <text x="310" y="395" fill="#8b949e" font-family="sans-serif" font-size="10">• LATEST pointer file</text>
+  <text x="310" y="410" fill="#8b949e" font-family="sans-serif" font-size="10">• Fast 1-command restoration</text>
+
+  <!-- Production Server Target -->
+  <rect x="560" y="95" width="460" height="360" rx="8" fill="#161b22" stroke="#30363d"/>
+  <rect x="575" y="110" width="430" height="32" rx="4" fill="#238636"/>
+  <text x="590" y="132" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="bold">Production Runtime: /opt/digital-twin-datacenter</text>
+
+  <rect x="580" y="160" width="210" height="120" rx="6" fill="#21262d" stroke="#30363d"/>
+  <text x="595" y="185" fill="#58a6ff" font-family="sans-serif" font-size="12" font-weight="bold">Application Source</text>
+  <text x="595" y="205" fill="#8b949e" font-family="sans-serif" font-size="10">• backend/ (Node.js runtime)</text>
+  <text x="595" y="220" fill="#8b949e" font-family="sans-serif" font-size="10">• frontend/dist/ (Static 3D web)</text>
+  <text x="595" y="235" fill="#8b949e" font-family="sans-serif" font-size="10">• database/migrations/</text>
+  <text x="595" y="250" fill="#8b949e" font-family="sans-serif" font-size="10">• infra/nginx/ &amp; infra/tailscale/</text>
+  <text x="595" y="265" fill="#8b949e" font-family="sans-serif" font-size="10">• deployment/ (deploy, start, stop)</text>
+
+  <rect x="805" y="160" width="200" height="120" rx="6" fill="#21262d" stroke="#f0883e"/>
+  <text x="820" y="185" fill="#f0883e" font-family="sans-serif" font-size="12" font-weight="bold">Protected Invariants</text>
+  <text x="820" y="205" fill="#7ee787" font-family="sans-serif" font-size="10">✓ .env.server (Production env)</text>
+  <text x="820" y="220" fill="#7ee787" font-family="sans-serif" font-size="10">✓ postgres-data Named Volume</text>
+  <text x="820" y="235" fill="#7ee787" font-family="sans-serif" font-size="10">✓ IP 192.168.1.167 (LAN IP)</text>
+  <text x="820" y="250" fill="#7ee787" font-family="sans-serif" font-size="10">✓ NIC enp11s0 (Hardware NIC)</text>
+  <text x="820" y="265" fill="#7ee787" font-family="sans-serif" font-size="10">✓ MQTT Port 1883 LAN</text>
+
+  <rect x="580" y="295" width="425" height="140" rx="6" fill="#0d1117" stroke="#388bfd"/>
+  <text x="595" y="320" fill="#79c0ff" font-family="sans-serif" font-size="12" font-weight="bold">Docker Compose Runtime Environment (dt_datacenter)</text>
+  <text x="595" y="340" fill="#c9d1d9" font-family="sans-serif" font-size="11">Network: dt_datacenter_default (Bridge 172.x.x.x)</text>
+  <text x="595" y="360" fill="#8b949e" font-family="sans-serif" font-size="10">• postgres (Port 5432 Internal) • mosquitto (Port 1883 Bound to 0.0.0.0 LAN)</text>
+  <text x="595" y="375" fill="#8b949e" font-family="sans-serif" font-size="10">• backend (Port 3000 Internal)   • nginx (Port 80 LAN + Port 8080 Funnel Loopback)</text>
+  <text x="595" y="390" fill="#8b949e" font-family="sans-serif" font-size="10">• node-exporter (Host Network Mode reading /proc &amp; /sys)</text>
+  <text x="595" y="415" fill="#7ee787" font-family="sans-serif" font-size="11" font-weight="bold">● Zero Down-Time Volume Deletion • Non-Destructive Update Pipeline</text>
+</svg>
