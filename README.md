@@ -133,11 +133,12 @@ Pekerjaan di server laboratorium menggunakan mode **ROOT murni** tanpa `sudo`.
    ```bash
    su -
    ```
-3. Identifikasi dan mount partisi USB:
+3. Identifikasi partisi USB (periksa TRAN=usb, LABEL=DEBIAN 13_7, dan SIZE; jangan berasumsi selalu /dev/sdb1):
    ```bash
    lsblk -o NAME,SIZE,TRAN,MODEL,FSTYPE,LABEL,MOUNTPOINTS
    mkdir -p /mnt/usb
-   mount -o ro /dev/sdb1 /mnt/usb
+   # Ganti /dev/sdX1 dengan nama partisi hasil identifikasi di atas
+   mount -o ro /dev/sdX1 /mnt/usb
    cd "/mnt/usb/Digital Twin"
    ```
 

@@ -81,8 +81,8 @@ Panduan 8 tahap berurutan ini dirancang khusus untuk memastikan pembaruan source
 3. Mount partisi tersebut secara **Read-Only**:
    ```bash
    mkdir -p /mnt/usb
-   # Asumsikan partisi terdeteksi sebagai sdb1 (sesuaikan dengan bukti lsblk)
-   mount -o ro,nosuid,nodev /dev/sdb1 /mnt/usb
+   # Ganti /dev/sdX1 dengan nama partisi hasil identifikasi lsblk (misal /dev/sdb1 atau /dev/sdc1)
+   mount -o ro,nosuid,nodev /dev/sdX1 /mnt/usb
    ls -la "/mnt/usb/Digital Twin"
    ```
 

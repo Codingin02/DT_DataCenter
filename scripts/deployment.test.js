@@ -187,3 +187,18 @@ test('npm cache configuration is portable and excluded from publication', () => 
   assert.match(read('.npmrc'), /^cache=\.cache\/npm$/m);
   assert.match(read('.gitignore'), /^\.cache\/$/m);
 });
+
+test('deploy orchestrator enforces staging isolation, missing env failsafe, safe rollback and funnel isolation', () => {
+  const deploy = read('deployment/linux/deploy.sh');
+  assert.match(deploy, /umask 077/);
+  assert.match(deploy, /chmod 700 "\$STAGING_DIR"/);
+  assert.match(deploy, /--exclude='\.env\*'/);
+  assert.match(deploy, /--exclude='config\/private\/'/);
+  assert.match(deploy, /find "\$STAGING_DIR" -name '\.env\*'/);
+  assert.doesNotMatch(deploy, /cp "\$STAGING_DIR\/\.env\.server"/);
+  assert.match(deploy, /FATAL: File \$TARGET_DIR\/\.env\.server tidak ditemukan/);
+  assert.match(deploy, /CATATAN KEAMANAN DATABASE POSTGRESQL/);
+  assert.doesNotMatch(deploy, /createdb.*\$TARGET_DIR/);
+  assert.match(deploy, /nginx nginx -t/);
+  assert.match(deploy, /up -d --no-build --force-recreate --wait --wait-timeout 30 nginx/);
+});
