@@ -41,8 +41,9 @@ const requestedAssetId = new window.URLSearchParams(window.location.search).get(
 const assetId = requestedAssetId || document.body.dataset.assetId?.trim() || '';
 const physicalDeviceId = assetId === 'dt-datacenter-rack' ? 'rack-controller' : null;
 const electricalDeviceId = document.body.dataset.electricalDeviceId?.trim() || '';
+const hostDeviceId = document.body.dataset.hostDeviceId?.trim() || 'host-dt-datacenter';
 const observedAssetIds = physicalDeviceId
-  ? ['sht31-a', 'sht31-b', 'rack-acoustic', electricalDeviceId].filter(Boolean)
+  ? ['sht31-a', 'sht31-b', 'rack-acoustic', electricalDeviceId, hostDeviceId].filter(Boolean)
   : [assetId].filter(Boolean);
 const canvas = document.querySelector('#rack-canvas');
 const physicalRackModel = canvas.dataset.modelKind === 'rack';

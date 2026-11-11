@@ -106,7 +106,10 @@ test('OS overrides preserve MQTT data and Windows disables Linux host exporter',
 
 test('public gateway is separate from LAN and denies administration and metrics by default', () => {
   const config = read('infra/nginx/funnel.conf');
-  assert.match(config, /location = \/api\/spatial-registration\s*\{\s*return 403;/);
+  assert.match(
+    config,
+    /location = \/api\/spatial-registration\s*\{\s*limit_except GET\s*\{\s*deny all;\s*\}/
+  );
   assert.match(config, /location = \/metrics\s*\{\s*return 404;/);
   assert.match(config, /location \/api\/\s*\{\s*return 404;/);
   assert.match(config, /proxy_buffering off/);
